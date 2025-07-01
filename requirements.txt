@@ -1,0 +1,7 @@
+# Minimal dependencies based on latest LangGraph + LangChain best practices
+langgraph
+langchain
+langchain-openai
+openai
+replicate
+python-dotenv

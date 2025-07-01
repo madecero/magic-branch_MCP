@@ -1,9 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph_app import graph
-from dotenv import load_dotenv
 
-load_dotenv()
 app = FastAPI()
 
 app.add_middleware(
@@ -20,11 +18,11 @@ def healthcheck():
 
 @app.post("/generate")
 async def generate_story_and_images(request: Request):
-    try:
-        data = await request.json()
-        print("[main] Payload:", data)
+    data = await request.json()
+    print("[main] Payload:", data)
+    if hasattr(graph, "ainvoke"):
+        result = await graph.ainvoke(data)
+    else:
         result = graph.invoke(data)
-        return {"pages": result["image_pages"]}
-    except Exception as e:
-        print("[main] Error:", e)
-        return {"error": str(e)}
+    print("[main] Result:", result)
+    return {"pages": result.get("image_pages", [])}

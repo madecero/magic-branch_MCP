@@ -1,11 +1,43 @@
-# Python
+# Ignore Python environment
+.venv/
 __pycache__/
 *.py[cod]
-*.egg-info/
+*.pyo
+
+# Ignore dotenv files
 .env
 .env.*
-*.sqlite3
-.DS_Store
 
-# VS Code
+# Ignore logs
+*.log
+
+# Ignore OS junk
+.DS_Store
+Thumbs.db
+
+# Ignore node_modules (frontend)
+node_modules/
+frontend/node_modules/
+
+# Ignore build and dist
+build/
+dist/
+.next/
+out/
+
+# Ignore coverage reports
+coverage/
+*.lcov
+
+# Ignore lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore TypeScript build info
+*.tsbuildinfo
+
+# Ignore local IDE/editor folders
 .vscode/
+.idea/
+*.swp

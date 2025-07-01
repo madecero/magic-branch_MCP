@@ -6,12 +6,14 @@ from langchain_core.runnables import RunnableLambda
 load_dotenv()
 llm = ChatOpenAI(model="gpt-4", temperature=0.8, api_key=os.getenv("OPENAI_API_KEY"))
 
-def generate_story(data):
-    name = data.get("name", "the child")
-    gender = data.get("gender", "neutral")
-    age = data.get("age", 4)
-    interests = ", ".join(data.get("interests", []))
-    length = data.get("length", 5)
+def generate_story(state):
+    print("[story_agent] Received state:", state)
+
+    name = state.get("name", "the child")
+    gender = state.get("gender", "neutral")
+    age = state.get("age", 4)
+    interests = ", ".join(state.get("interests", []))
+    length = state.get("length", 5)
 
     system_prompt = (
         f"You are a storybook AI that creates vivid, connected stories for children. "
@@ -30,15 +32,23 @@ def generate_story(data):
         {"role": "user", "content": user_prompt}
     ])
 
+    print("[story_agent] LLM Result:", result.content)
+
+    # ✅ Safely split and handle empty output
     pages = [p.strip() for p in result.content.split("\n\n") if p.strip()]
-    return {
-        "story_pages": pages[:length],
-        "context": {
-            "name": name,
-            "age": age,
-            "gender": gender,
-            "interests": interests
-        }
+    if not pages:
+        raise ValueError("No story content returned from model.")
+
+    state["story_pages"] = pages[:length]
+    state["context"] = {
+        "name": name,
+        "age": age,
+        "gender": gender,
+        "interests": interests
     }
 
+    print("[story_agent] Returning updated state:", state)
+    return state
+
+# ✅ Wrap with RunnableLambda for LangGraph compatibility
 story_agent = RunnableLambda(generate_story)

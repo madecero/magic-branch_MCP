@@ -4,7 +4,8 @@ import StoryViewer from "../components/StoryViewer";
 import { Page } from "../types/page";
 
 export default function Home() {
-  const [pages, setPages] = useState<Page[]>([]);
+  const [pages, setPages] = useState<Page[]>([]); // ✅ default to empty array
+
 
   return (
     <div className="max-w-md mx-auto min-h-screen p-4">

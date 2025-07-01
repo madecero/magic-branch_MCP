@@ -20,6 +20,11 @@ def healthcheck():
 
 @app.post("/generate")
 async def generate_story_and_images(request: Request):
-    data = await request.json()
-    result = graph.invoke(data)
-    return {"pages": result}
+    try:
+        data = await request.json()
+        print("[main] Payload:", data)
+        result = graph.invoke(data)
+        return {"pages": result["image_pages"]}
+    except Exception as e:
+        print("[main] Error:", e)
+        return {"error": str(e)}

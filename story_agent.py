@@ -1,10 +1,10 @@
+import os
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnableLambda
 
-from dotenv import load_dotenv
 load_dotenv()
-
-llm = ChatOpenAI(model="gpt-4", temperature=0.8)
+llm = ChatOpenAI(model="gpt-4", temperature=0.8, api_key=os.getenv("OPENAI_API_KEY"))
 
 def generate_story(data):
     name = data.get("name", "the child")
@@ -14,16 +14,15 @@ def generate_story(data):
     length = data.get("length", 5)
 
     system_prompt = (
-        "You are a friendly storybook AI that creates short, vivid, age-appropriate stories for children. "
-        "Generate exactly {length} story pages. Each page should be a clear and complete paragraph. "
-        "Avoid headings like 'Page 1'. Do not leave any page empty. Each paragraph should be fun, simple, and imaginative."
-        "The main character of the story is a child named {name} who is {age} years old and enjoys {interests}."
-        "The child should get a sense that magic is real from the story."
-    ).format(length=length, name=name, age=age, interests=interests)
+        f"You are a storybook AI that creates vivid, connected stories for children. "
+        f"The main character is a {age}-year-old child named {name} who enjoys {interests}. "
+        f"Generate exactly {length} paragraphs. Each paragraph is a coherent story page. "
+        "Keep a magical, cohesive narrative arc across all pages."
+    )
 
     user_prompt = (
-        f"Write a children's story for a {age}-year-old named {name} who enjoys {interests}. "
-        f"Make the story {length} pages long. Each page should be a warm, engaging paragraph."
+        f"Write a story for a {age}-year-old named {name} who enjoys {interests}. "
+        f"The story must have exactly {length} vivid, sequential paragraphs."
     )
 
     result = llm.invoke([
@@ -32,6 +31,14 @@ def generate_story(data):
     ])
 
     pages = [p.strip() for p in result.content.split("\n\n") if p.strip()]
-    return pages[:length]
+    return {
+        "story_pages": pages[:length],
+        "context": {
+            "name": name,
+            "age": age,
+            "gender": gender,
+            "interests": interests
+        }
+    }
 
 story_agent = RunnableLambda(generate_story)

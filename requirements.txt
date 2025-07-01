@@ -1,7 +1,8 @@
-# Minimal dependencies based on latest LangGraph + LangChain best practices
 langgraph
 langchain
 langchain-openai
 openai
 replicate
+fastapi
+uvicorn
 python-dotenv

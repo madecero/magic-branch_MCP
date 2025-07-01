@@ -3,8 +3,7 @@ from story_agent import story_agent
 from image_agent import image_agent
 from memory_agent import memory_agent
 
-class AppState(dict):
-    pass
+class AppState(dict): pass
 
 def build_graph():
     builder = StateGraph(AppState)

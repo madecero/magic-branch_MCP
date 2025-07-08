@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
   images: {
     domains: [
       "oaidalleapiprodscus.blob.core.windows.net",
-      "oaidalleapiprodscus.blob.core.windows.net", // Add any other domains as needed
+      "oaidalleapiprodscus.blob.core.windows.net",
+      "replicate.delivery" // Add any other domains as needed
     ],
   },
 };

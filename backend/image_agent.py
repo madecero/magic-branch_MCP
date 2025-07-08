@@ -1,12 +1,19 @@
 import os
 import replicate
-import requests
 from langchain_core.runnables import RunnableLambda
 from dotenv import load_dotenv
 
 load_dotenv()
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
+
+def extract_url(output):
+    """Extract a URL string from Replicate output (FileOutput, string, or list)."""
+    if isinstance(output, list):
+        first = output[0]
+    else:
+        first = output
+    return getattr(first, "url", str(first))
 
 def generate_images(state):
     print("[image_agent] Received state:", state)
@@ -34,11 +41,11 @@ def generate_images(state):
         )
 
         if i == 0:
-            # 1. Generate first image with SDXL Turbo
+            # 1. Generate first image with SDXL
             print(f"[image_agent] Generating SDXL Turbo image for page 1 with prompt: {prompt}")
             try:
                 output = replicate.run(
-                    "stability-ai/sdxl-turbo:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
+                    "stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc",
                     input={
                         "prompt": prompt,
                         "width": 1024,
@@ -47,25 +54,28 @@ def generate_images(state):
                         "guidance_scale": 2.5,
                     }
                 )
-                image_url = output[0] if isinstance(output, list) else output
+                image_url = extract_url(output)
                 print(f"[image_agent] Got SDXL Turbo image URL for page 1: {image_url}")
 
                 # 2. Generate canny edge map from the first image
-                print(f"[image_agent] Generating canny edge map for page 1 image")
+                canny_input = {
+                    "image": image_url,
+                    "threshold_a": 100,
+                    "threshold_b": 200,
+                    "prompt": prompt
+                }
+                print(f"[image_agent] Canny model input: {canny_input}")
                 canny_output = replicate.run(
-                    "ai-forever/kandinsky-2.2-controlnet-canny:dbb8e7e2e9c2e7b7e7e8e7e8e7e8e7e8e7e8e7e8e7e8e7e8e7e8e7e8e7e8",
-                    input={
-                        "image": image_url,
-                        "threshold_a": 100,
-                        "threshold_b": 200
-                    }
+                    "jagilley/controlnet-canny:aff48af9c68d162388d230a2ab003f68d2638d88307bdaf1c2f1ac95079c9613",
+                    input=canny_input
                 )
-                canny_image_url = canny_output[0] if isinstance(canny_output, list) else canny_output
+                print(f"[image_agent] Raw canny_output type: {type(canny_output)}, value: {canny_output}")
+                canny_image_url = extract_url(canny_output)
                 print(f"[image_agent] Got canny edge image URL: {canny_image_url}")
 
             except Exception as e:
                 print(f"[image_agent] SDXL Turbo or canny edge API error for page 1: {e}")
-                image_url = f"https://dummyimage.com/600x400/ff0000/fff&text=Error+Page+1"
+                image_url = "https://dummyimage.com/600x400/ff0000/fff&text=Error+Page+1"
                 canny_image_url = None
 
         else:
@@ -86,11 +96,15 @@ def generate_images(state):
                     "lucataco/sdxl-controlnet:06d6fae3b75ab68a28cd2900afa6033166910dd09fd9751047043a5bbb4c184b",
                     input=inputs
                 )
-                image_url = output[0] if isinstance(output, list) else output
+                image_url = extract_url(output)
                 print(f"[image_agent] Got SDXL+ControlNet image URL for page {i+1}: {image_url}")
             except Exception as e:
                 print(f"[image_agent] Replicate API error for page {i+1}: {e}")
                 image_url = f"https://dummyimage.com/600x400/ff0000/fff&text=Error+Page+{i+1}"
+
+        # Defensive: ensure image_url is always a string URL
+        if not isinstance(image_url, str) or not image_url.startswith("http"):
+            image_url = "https://dummyimage.com/600x400/ff0000/fff&text=Error"
 
         image_pages.append({
             "text": chunk,

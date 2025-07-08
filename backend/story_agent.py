@@ -17,7 +17,7 @@ def generate_story(state):
 
     system_prompt = (
         f"You are a storybook AI that creates vivid, connected stories for children. "
-        f"The main character is a {age}-year-old child named {name} who enjoys {interests}. "
+        f"The main character is a {age}-year-old {gender} named {name} who enjoys {interests}. "
         f"Generate exactly {length} paragraphs. Each paragraph is a coherent story page. "
         "Keep a magical, cohesive narrative arc across all pages."
     )

@@ -1,5 +1,6 @@
+// api.ts
 import axios from "axios";
-import { Page } from "../types/page";
+import { StoryData } from "../types/story.ts"; // Updated type
 
 // ✅ Update this if you're testing locally, or keep it pointed to Render
 const API = axios.create({
@@ -12,7 +13,7 @@ export const generateStory = async (payload: {
   age: number;
   interests: string[];
   length: number;
-}): Promise<Page[]> => {
+}): Promise<StoryData> => {
   const res = await API.post("/generate", payload);
-  return res.data.pages; // assuming backend returns { pages: [...] }
+  return res.data; // Now returns { pages: [...], title: "...", cover_image: "..." } assuming backend updated
 };

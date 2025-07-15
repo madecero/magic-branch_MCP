@@ -1,19 +1,11 @@
+# image_agent.py (Updated)
 import os
-import replicate
-from langchain_core.runnables import RunnableLambda
+import openai
 from dotenv import load_dotenv
 
 load_dotenv()
-REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
-os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
-
-def extract_url(output):
-    """Extract a URL string from Replicate output (FileOutput, string, or list)."""
-    if isinstance(output, list):
-        first = output[0]
-    else:
-        first = output
-    return getattr(first, "url", str(first))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 
 def generate_images(state):
     print("[image_agent] Received state:", state)
@@ -22,87 +14,62 @@ def generate_images(state):
     if not story_chunks:
         raise ValueError("Missing story_pages in state.")
 
-    context = state.get("context", {})
-    character_desc = (
-        f"Main character: {context.get('name', '')}, "
-        f"age {context.get('age', '')}, gender {context.get('gender', '')}, "
-        f"interests: {context.get('interests', '')}."
+    character_descriptions = state.get("character_descriptions", {})
+    # Clean join without extra periods
+    char_desc_str = " ".join([f"{name}: {desc}." for name, desc in character_descriptions.items()]) if character_descriptions else ""
+    if char_desc_str:
+        char_desc_str = f"Characters: {char_desc_str}"
+
+    art_style = state.get("art_style", "whimsical, colorful children's book style")
+
+    # Summarize story for cover to shorten prompt
+    full_story_summary = " ".join(story_chunks)[:1000] + "..." if len(" ".join(story_chunks)) > 1000 else " ".join(story_chunks)
+
+    # Generate book cover
+    cover_prompt = (
+        f"{art_style} book cover illustration without any text. {char_desc_str} "
+        f"Story summary: {full_story_summary} "
+        "Depict all main characters together in a scene that captures the essence of the story. "
+        "Absolutely no text, letters, words, captions, titles, or any written elements in the image whatsoever; pure illustration only."
     )
+    print(f"[image_agent] Generating book cover with DALL·E: {cover_prompt}")
+    try:
+        response = openai.images.generate(
+            model="dall-e-3",
+            prompt=cover_prompt,
+            n=1,
+            size="1024x1024",
+            quality="standard"
+        )
+        cover_url = response.data[0].url
+        print(f"[image_agent] Got DALL·E book cover URL: {cover_url}")
+    except Exception as e:
+        print(f"[image_agent] DALL·E API error for book cover: {e}")
+        cover_url = "https://dummyimage.com/600x400/ff0000/fff&text=Error+Cover"
 
     image_pages = []
-    canny_image_url = None
-
     for i, chunk in enumerate(story_chunks):
         prompt = (
-            f"{character_desc} "
+            f"{art_style} page illustration without any text. {char_desc_str} "
             f"Illustrate this scene: {chunk} "
-            "Keep the main character(s) visually consistent with previous pages. "
-            "Do not include any text, captions, or words in the image."
+            "Keep the characters visually consistent with their descriptions. "
+            "Absolutely no text, letters, words, captions, signs, or any written elements in the image whatsoever; pure illustration only."
         )
+        print(f"[image_agent] Generating page {i+1} with DALL·E. Prompt: {prompt}")
+        try:
+            response = openai.images.generate(
+                model="dall-e-3",
+                prompt=prompt,
+                n=1,
+                size="1024x1024",
+                quality="standard"
+            )
+            image_url = response.data[0].url
+            print(f"[image_agent] Got page {i+1} image URL: {image_url}")
+        except Exception as e:
+            print(f"[image_agent] DALL·E API error for page {i+1}: {e}")
+            image_url = f"https://dummyimage.com/600x400/ff0000/fff&text=Error+Page+{i+1}"
 
-        if i == 0:
-            # 1. Generate first image with SDXL
-            print(f"[image_agent] Generating SDXL Turbo image for page 1 with prompt: {prompt}")
-            try:
-                output = replicate.run(
-                    "stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc",
-                    input={
-                        "prompt": prompt,
-                        "width": 1024,
-                        "height": 1024,
-                        "num_inference_steps": 30,
-                        "guidance_scale": 2.5,
-                    }
-                )
-                image_url = extract_url(output)
-                print(f"[image_agent] Got SDXL Turbo image URL for page 1: {image_url}")
-
-                # 2. Generate canny edge map from the first image
-                canny_input = {
-                    "image": image_url,
-                    "threshold_a": 100,
-                    "threshold_b": 200,
-                    "prompt": prompt
-                }
-                print(f"[image_agent] Canny model input: {canny_input}")
-                canny_output = replicate.run(
-                    "jagilley/controlnet-canny:aff48af9c68d162388d230a2ab003f68d2638d88307bdaf1c2f1ac95079c9613",
-                    input=canny_input
-                )
-                print(f"[image_agent] Raw canny_output type: {type(canny_output)}, value: {canny_output}")
-                canny_image_url = extract_url(canny_output)
-                print(f"[image_agent] Got canny edge image URL: {canny_image_url}")
-
-            except Exception as e:
-                print(f"[image_agent] SDXL Turbo or canny edge API error for page 1: {e}")
-                image_url = "https://dummyimage.com/600x400/ff0000/fff&text=Error+Page+1"
-                canny_image_url = None
-
-        else:
-            # 3. Use SDXL + ControlNet for subsequent images
-            print(f"[image_agent] Generating SDXL+ControlNet image for page {i+1} with prompt: {prompt}")
-            inputs = {
-                "prompt": prompt,
-                "num_inference_steps": 30,
-                "width": 1024,
-                "height": 1024,
-                "guidance_scale": 7.5,
-                "negative_prompt": "text, caption, subtitle, watermark, words, letters, writing",
-                "image": canny_image_url,
-                "conditioning_scale": 0.7
-            }
-            try:
-                output = replicate.run(
-                    "lucataco/sdxl-controlnet:06d6fae3b75ab68a28cd2900afa6033166910dd09fd9751047043a5bbb4c184b",
-                    input=inputs
-                )
-                image_url = extract_url(output)
-                print(f"[image_agent] Got SDXL+ControlNet image URL for page {i+1}: {image_url}")
-            except Exception as e:
-                print(f"[image_agent] Replicate API error for page {i+1}: {e}")
-                image_url = f"https://dummyimage.com/600x400/ff0000/fff&text=Error+Page+{i+1}"
-
-        # Defensive: ensure image_url is always a string URL
         if not isinstance(image_url, str) or not image_url.startswith("http"):
             image_url = "https://dummyimage.com/600x400/ff0000/fff&text=Error"
 
@@ -111,8 +78,7 @@ def generate_images(state):
             "image": image_url
         })
 
+    state["cover_image"] = cover_url
     state["image_pages"] = image_pages
     print("[image_agent] Returning updated state:", state)
     return state
-
-generate_images = RunnableLambda(generate_images)

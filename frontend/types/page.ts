@@ -1,4 +1,5 @@
-export type Page = {
+// page.ts 
+export interface Page {
   text: string;
   image: string;
-};
+}

@@ -1,4 +1,3 @@
-// StoryViewer.tsx
 import { useState } from "react";
 import Image from "next/image";
 import { Page } from "../types/page";

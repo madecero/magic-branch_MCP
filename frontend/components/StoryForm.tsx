@@ -1,4 +1,3 @@
-// StoryForm.tsx
 import { useState } from "react";
 import { generateStory } from "../utils/api";
 import { Page } from "../types/page";

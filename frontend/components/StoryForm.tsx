@@ -2,7 +2,6 @@ import { useState } from "react";
 import { generateStoryProgressive, GenerationStep } from "../utils/api";
 import { Page } from "../types/page";
 import GenerationProgress from "./GenerationProgress";
-import StoryReader from "./StoryReader";
 
 interface Props {
   onStoryGenerated: (pages: Page[]) => void;
@@ -16,12 +15,10 @@ export default function StoryForm({ onStoryGenerated }: Props) {
   const [length, setLength] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<GenerationStep | null>(null);
-  const [isReading, setIsReading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
-    setIsReading(false);
     
     try {
       const pages = await generateStoryProgressive(
@@ -35,9 +32,9 @@ export default function StoryForm({ onStoryGenerated }: Props) {
         (step) => setCurrentStep(step)
       );
       
+      // Optionally call onStoryGenerated if needed for parent state, but we keep in progress UI
       onStoryGenerated(pages);
-      // DON'T set isGenerating to false - keep showing the same interface
-      // setIsGenerating(false);
+      // Do NOT setIsGenerating(false) - stay in GenerationProgress for seamless reader experience
     } catch (error) {
       console.error('Story generation failed:', error);
       setIsGenerating(false);
@@ -45,37 +42,9 @@ export default function StoryForm({ onStoryGenerated }: Props) {
     }
   };
 
-  const handleStartReading = () => {
-    setIsReading(true);
-  };
-
-  // Show story reader if user clicked "Start Reading"
-  if (isReading && currentStep && currentStep.availablePages) {
-    return (
-      <div className="space-y-4">
-        <StoryReader
-          pages={currentStep.availablePages}
-          coverImage={currentStep.coverImage}
-          title={currentStep.title}
-          isGenerationComplete={currentStep.step === 'complete'}
-        />
-        
-        {/* Always show generation progress at bottom - even when complete */}
-        <div className="border-t pt-4">
-          <GenerationProgress step={currentStep} />
-        </div>
-      </div>
-    );
-  }
-
-  // Show generation progress (this now includes completed state)
+  // Always show GenerationProgress once generation starts
   if (isGenerating && currentStep) {
-    return (
-      <GenerationProgress 
-        step={currentStep} 
-        onStartReading={handleStartReading}
-      />
-    );
+    return <GenerationProgress step={currentStep} />;
   }
 
   // Show initial form

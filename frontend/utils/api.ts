@@ -28,27 +28,20 @@ export const generateStoryProgressive = async (
   },
   onProgress: (step: GenerationStep) => void
 ): Promise<Page[]> => {
-  // Step 1: Generate enticer quickly while story generates in background
+  // Step 1: Generate enticer quickly
   onProgress({ step: 'enticer', message: 'Creating your magical adventure...' });
   
-  // Start both calls simultaneously
-  const [enticerRes, storyRes] = await Promise.all([
-    API.post("/generate-enticer", payload),
-    (() => {
-      // Show enticer as soon as it's ready
-      return API.post("/generate-enticer", payload).then(res => {
-        onProgress({ 
-          step: 'enticer', 
-          message: 'Writing your full story...', 
-          enticer: res.data.enticer 
-        });
-        // Now start the full story generation
-        return API.post("/generate-story", payload);
-      });
-    })()
-  ]);
+  const enticerRes = await API.post("/generate-enticer", payload);
   
-  // Show story summary after story is generated
+  onProgress({ 
+    step: 'enticer', 
+    message: 'Writing your full story...', 
+    enticer: enticerRes.data.enticer 
+  });
+  
+  // Step 2: Generate full story
+  const storyRes = await API.post("/generate-story", payload);
+  
   onProgress({ 
     step: 'story', 
     message: 'Your story is ready! Creating your book cover...', 
@@ -57,7 +50,7 @@ export const generateStoryProgressive = async (
     summary: storyRes.data.summary 
   });
   
-  // Step 2: Generate cover
+  // Step 3: Generate cover
   const coverRes = await API.post("/generate-cover", storyRes.data);
   
   onProgress({ 
@@ -69,7 +62,7 @@ export const generateStoryProgressive = async (
     coverImage: coverRes.data.cover_image 
   });
   
-  // Step 3: Generate page images progressively
+  // Step 4: Generate page images progressively
   const pages = storyRes.data.story_pages;
   const finalPages: Page[] = [];
   const availablePages: Page[] = [];

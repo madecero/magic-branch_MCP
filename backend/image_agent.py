@@ -1,9 +1,10 @@
-# image_agent.py (Updated)
+# image_agent.py
 import os
 import openai
 import requests
 import tempfile
 from dotenv import load_dotenv
+import asyncio
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -79,7 +80,7 @@ def generate_cover_image(story_data):
     except Exception as e:
         print(f"[image_agent] DALL·E API error for book cover: {e}")
         return "https://dummyimage.com/600x400/ff0000/fff&text=Error+Cover"
-    
+
 def generate_page_image(text, cover_image, page_index, character_descriptions=None, art_style=None, context=None):
     """Generate a single page image using the cover as reference"""
     print(f"[image_agent] Generating page {page_index + 1} image")
@@ -139,9 +140,13 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
     except Exception as e:
         print(f"[image_agent] DALL·E API error for page {page_index + 1}: {e}")
         return f"https://dummyimage.com/600x400/ff0000/fff&text=Error+Page+{page_index + 1}"
-       
-# Keep the original function for backward compatibility
-def generate_images(state):
+
+async def generate_page_image_async(text, cover_image, page_index, character_descriptions=None, art_style=None, context=None):
+    """Async wrapper for generate_page_image"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, generate_page_image, text, cover_image, page_index, character_descriptions, art_style, context)
+
+async def generate_images(state):
     print("[image_agent] Received state:", state)
 
     story_chunks = state.get("story_pages")
@@ -150,32 +155,32 @@ def generate_images(state):
 
     character_descriptions = state.get("character_descriptions", {})
     art_style = state.get("art_style", "whimsical, colorful children's book style")
+    context = state.get("context", {})
 
-    # Generate cover
+    # Generate cover (sync for now, as it's single)
     cover_url = generate_cover_image({
         "story_pages": story_chunks,
         "character_descriptions": character_descriptions,
-        "art_style": art_style
+        "art_style": art_style,
+        "context": context
     })
 
-    # Generate page images
-    image_pages = []
+    # Generate page images in parallel
+    tasks = []
     for i, chunk in enumerate(story_chunks):
-        image_url = generate_page_image(
-            text=chunk,
-            cover_image=cover_url,
-            page_index=i,
-            character_descriptions=character_descriptions,
-            art_style=art_style
-        )
-        
-        if not isinstance(image_url, str) or not image_url.startswith("http"):
-            image_url = "https://dummyimage.com/600x400/ff0000/fff&text=Error"
-
-        image_pages.append({
-            "text": chunk,
-            "image": image_url
-        })
+        tasks.append(generate_page_image_async(
+            chunk, cover_url, i, character_descriptions, art_style, context
+        ))
+    
+    image_urls = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    image_pages = []
+    for i, url_or_exc in enumerate(image_urls):
+        if isinstance(url_or_exc, Exception):
+            url = "https://dummyimage.com/1024x1024/eee&text=Loading..."  # Placeholder for errors
+        else:
+            url = url_or_exc if isinstance(url_or_exc, str) else "https://dummyimage.com/1024x1024/eee&text=Loading..."
+        image_pages.append({"text": story_chunks[i], "image": url})
 
     state["cover_image"] = cover_url
     state["image_pages"] = image_pages

@@ -7,9 +7,10 @@ import { Page } from '../types/page';
 
 interface Props {
   step: GenerationStep;
+  onReset?: () => void;  // Optional prop for resetting to new story (add to StoryForm if needed)
 }
 
-export default function GenerationProgress({ step }: Props) {
+export default function GenerationProgress({ step, onReset }: Props) {
   const [isReading, setIsReading] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [availablePages, setAvailablePages] = useState<Page[]>([]);
@@ -62,7 +63,7 @@ export default function GenerationProgress({ step }: Props) {
 
   const getRandomFunFact = () => funFacts[Math.floor(Math.random() * funFacts.length)];
 
-  // Reader View (folded from StoryReader.tsx and StoryViewer.tsx)
+  // Reader View: Full-screen immersive with text overlay
   if (isReading) {
     if (availablePages.length === 0) {
       return <div className="text-center p-8">Loading your story...</div>;
@@ -76,12 +77,12 @@ export default function GenerationProgress({ step }: Props) {
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
-        className="max-w-2xl mx-auto p-4 space-y-6"
+        className="relative min-h-screen flex flex-col"  // Full-screen container
       >
-        {/* Header */}
-        <div className="text-center space-y-2">
-          {step.title && <h1 className="text-2xl font-bold text-gray-800">{step.title}</h1>}
-          <p className="text-sm text-gray-600">
+        {/* Header (minimal, floats top) */}
+        <div className="absolute top-4 left-0 right-0 z-20 text-center space-y-2 px-4">
+          {step.title && <h1 className="text-2xl font-bold text-gray-800 bg-white/80 rounded-lg py-1 px-3 inline-block">{step.title}</h1>}
+          <p className="text-sm text-gray-600 bg-white/80 rounded-lg py-1 px-3 inline-block">
             Page {currentPageIndex + 1} of {availablePages.length}
             {!isComplete && availablePages.length < (step.totalPages || 0) && (
               <span className="text-blue-600"> (More pages coming...)</span>
@@ -89,15 +90,15 @@ export default function GenerationProgress({ step }: Props) {
           </p>
         </div>
 
-        {/* Page Content */}
+        {/* Page Content: Image fills screen, text overlays bottom */}
         <motion.div 
           key={currentPage.image}
           initial={{ scale: 0.95 }}
           animate={{ scale: 1 }}
-          className="bg-white rounded-lg shadow-lg overflow-hidden"
+          className="flex-grow relative overflow-hidden"
         >
-          {/* Page Image with Placeholder */}
-          <div className="relative w-full h-80 bg-gray-100">
+          {/* Full-screen Image */}
+          <div className="absolute inset-0">
             <Image
               src={currentPage.image}
               alt={`Page ${currentPageIndex + 1}`}
@@ -118,16 +119,19 @@ export default function GenerationProgress({ step }: Props) {
             ) : null}
           </div>
           
-          {/* Page Text */}
-          <div className="p-6">
-            <p className="text-gray-800 leading-relaxed text-lg">
-              {currentPage.text}
-            </p>
-          </div>
+          {/* Text Overlay at Bottom with Semi-Transparent Backdrop */}
+          <motion.div 
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60 to-transparent text-white leading-relaxed text-lg"
+          >
+            {currentPage.text}
+          </motion.div>
         </motion.div>
 
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
+        {/* Navigation: Floats at very bottom */}
+        <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-between px-4">
           <button
             onClick={() => setCurrentPageIndex(currentPageIndex - 1)}
             disabled={!canGoPrev}
@@ -139,20 +143,6 @@ export default function GenerationProgress({ step }: Props) {
           >
             ← Previous
           </button>
-
-          <div className="flex space-x-2">
-            {availablePages.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentPageIndex(index)}
-                className={`w-3 h-3 rounded-full transition-all ${
-                  index === currentPageIndex
-                    ? 'bg-blue-600'
-                    : 'bg-gray-300 hover:bg-gray-400'
-                }`}
-              />
-            ))}
-          </div>
 
           <button
             onClick={() => setCurrentPageIndex(currentPageIndex + 1)}
@@ -167,9 +157,9 @@ export default function GenerationProgress({ step }: Props) {
           </button>
         </div>
 
-        {/* Generation Status and Fun Facts */}
+        {/* Generation Status and Fun Facts (overlay if generating) */}
         {!isComplete && (
-          <div className="text-center p-4 bg-blue-50 rounded-lg space-y-2">
+          <div className="absolute bottom-20 left-0 right-0 z-10 text-center p-4 bg-blue-50/80 rounded-lg mx-4 space-y-2">
             <p className="text-blue-700">
               🎨 Still creating more pages... Keep reading!
             </p>
@@ -183,13 +173,25 @@ export default function GenerationProgress({ step }: Props) {
           </div>
         )}
 
-        {/* Back to Overview Button (if needed) */}
-        <div className="text-center">
+        {/* New Story Button on Complete */}
+        {isComplete && (
+          <div className="absolute bottom-20 left-0 right-0 z-10 text-center">
+            <button
+              onClick={onReset}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+            >
+              ✨ Create New Story!
+            </button>
+          </div>
+        )}
+
+        {/* Back to Overview Button */}
+        <div className="absolute top-4 right-4 z-20">
           <button
             onClick={() => setIsReading(false)}
-            className="text-blue-600 hover:text-blue-800 font-medium"
+            className="text-white hover:text-gray-300 font-medium bg-black/50 rounded-full px-3 py-1"
           >
-            ← Back to Overview
+            ← Overview
           </button>
         </div>
       </motion.div>
@@ -234,7 +236,7 @@ export default function GenerationProgress({ step }: Props) {
       {step.coverImage && (
         <div className="space-y-3">
           <p className="text-center text-sm font-medium text-gray-700">Your Book Cover</p>
-          <div className="relative w-56 h-56 mx-auto rounded-lg overflow-hidden shadow-lg">
+          <div className="relative w-56 h-80 mx-auto rounded-lg overflow-hidden shadow-lg">  {/* Taller preview */}
             <Image
               src={step.coverImage}
               alt="Book cover"

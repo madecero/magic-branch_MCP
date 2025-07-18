@@ -1,4 +1,4 @@
-# image_agent.py
+# image_agent.py (Updated)
 import os
 import openai
 import requests
@@ -57,11 +57,12 @@ def generate_cover_image(story_data):
     # Summarize story for cover to shorten prompt
     full_story_summary = " ".join(story_pages)[:800] + "..." if len(" ".join(story_pages)) > 800 else " ".join(story_pages)
 
-    # Generate book cover
+    # Generate book cover with space for text
     cover_prompt = (
         f"{art_style} book cover illustration without any text. {char_desc_str} "
         f"Story summary: {full_story_summary} "
         "Depict all main characters together in a scene that captures the essence of the story. "
+        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area (e.g., soft gradient or simple pattern) suitable for text overlay, with no important elements or characters in that space. "
         "Absolutely no text, letters, words, captions, titles, or any written elements in the image whatsoever; pure illustration only."
     )
     
@@ -71,7 +72,7 @@ def generate_cover_image(story_data):
             model="dall-e-3",
             prompt=cover_prompt,
             n=1,
-            size="1024x1024",
+            size="1024x1792",  # Taller aspect for full-screen feel with text space
             quality="standard"
         )
         cover_url = response.data[0].url
@@ -122,6 +123,7 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
         f"{art_style} page illustration without any text. {char_desc_str} "
         f"Illustrate this scene: {text} "
         "Keep ALL characters visually identical to their detailed descriptions and the book cover - same hair, eyes, clothes, gender presentation, everything. "
+        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area (e.g., soft gradient or simple pattern) suitable for text overlay, with no important elements or characters in that space. "
         "Absolutely no text, letters, words, captions, signs, or any written elements in the image whatsoever; pure illustration only."
     )
     
@@ -131,7 +133,7 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
             model="dall-e-3",
             prompt=prompt,
             n=1,
-            size="1024x1024",
+            size="1024x1792",  # Taller for mobile full-screen with text space
             quality="standard"
         )
         image_url = response.data[0].url

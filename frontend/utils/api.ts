@@ -6,9 +6,8 @@ const API = axios.create({
 });
 
 export interface GenerationStep {
-  step: 'enticer' | 'story' | 'cover' | 'pages' | 'complete';
+  step: 'story' | 'cover' | 'pages' | 'complete';
   message: string;
-  enticer?: string;
   title?: string;
   summary?: string;
   coverImage?: string;
@@ -28,100 +27,77 @@ export const generateStoryProgressive = async (
   },
   onProgress: (step: GenerationStep) => void
 ): Promise<Page[]> => {
-  // Step 1: Generate enticer quickly
-  onProgress({ step: 'enticer', message: 'Creating your magical adventure...' });
+  // Step 1: Generate full story first (includes title, summary, pages)
+  onProgress({ step: 'story', message: 'Writing your magical adventure...' });
   
-  const enticerRes = await API.post("/generate-enticer", payload);
-  
-  onProgress({ 
-    step: 'enticer', 
-    message: 'Writing your full story...', 
-    enticer: enticerRes.data.enticer 
-  });
-  
-  // Step 2: Generate full story
   const storyRes = await API.post("/generate-story", payload);
   
   onProgress({ 
     step: 'story', 
     message: 'Your story is ready! Creating your book cover...', 
-    enticer: enticerRes.data.enticer,
     title: storyRes.data.title,
     summary: storyRes.data.summary 
   });
   
-  // Step 3: Generate cover
+  // Step 2: Generate cover
   const coverRes = await API.post("/generate-cover", storyRes.data);
   
   onProgress({ 
     step: 'cover', 
     message: 'Book cover ready! Creating page illustrations...', 
-    enticer: enticerRes.data.enticer,
     title: storyRes.data.title,
     summary: storyRes.data.summary,
     coverImage: coverRes.data.cover_image 
   });
   
-  // Step 4: Generate page images progressively
+  // Step 3: Generate page images progressively and in parallel
   const pages = storyRes.data.story_pages;
   const finalPages: Page[] = [];
-  const availablePages: Page[] = [];
+  let availablePages: Page[] = [];
   
-  for (let i = 0; i < pages.length; i++) {
-    onProgress({ 
-      step: 'pages', 
-      message: `Creating illustrations...`,
-      enticer: enticerRes.data.enticer,
-      title: storyRes.data.title,
-      summary: storyRes.data.summary,
-      coverImage: coverRes.data.cover_image,
-      currentPage: i + 1,
-      totalPages: pages.length,
-      availablePages: [...availablePages]
-    });
-    
-    const pageRes = await API.post("/generate-page-image", {
-      text: pages[i],
+  // Fire all page generation requests in parallel
+  const pagePromises = pages.map((text: string, i: number) => 
+    API.post("/generate-page-image", {
+      text,
       coverImage: coverRes.data.cover_image,
       pageIndex: i,
       character_descriptions: storyRes.data.character_descriptions,
       art_style: storyRes.data.art_style,
       context: storyRes.data.context
-    });
-    
-    const newPage = {
-      text: pages[i],
-      image: pageRes.data.image_url
-    };
-    
-    finalPages.push(newPage);
-    availablePages.push(newPage);
-    
-    const canStartReading = availablePages.length >= 3;
-    
-    onProgress({ 
-      step: 'pages', 
-      message: canStartReading 
-        ? `${availablePages.length >= pages.length ? 'Your story is complete!' : 'Keep reading while we finish up...'}`
-        : `Almost ready to start reading...`,
-      enticer: enticerRes.data.enticer,
-      title: storyRes.data.title,
-      summary: storyRes.data.summary,
-      coverImage: coverRes.data.cover_image,
-      currentPage: i + 1,
-      totalPages: pages.length,
-      availablePages: [...availablePages]
-    });
-  }
+    }).then(pageRes => {
+      const newPage = {
+        text,
+        image: pageRes.data.image_url
+      };
+      finalPages.push(newPage); // Note: finalPages may not be in order, but we can sort later if needed
+      availablePages = [...availablePages, newPage].sort((a, b) => pages.indexOf(a.text) - pages.indexOf(b.text));
+      
+      onProgress({ 
+        step: 'pages', 
+        message: availablePages.length >= 3 
+          ? `${availablePages.length >= pages.length ? 'Your story is complete!' : 'Keep reading while we finish up...'}` 
+          : `Almost ready to start reading...`,
+        title: storyRes.data.title,
+        summary: storyRes.data.summary,
+        coverImage: coverRes.data.cover_image,
+        currentPage: availablePages.length,
+        totalPages: pages.length,
+        availablePages: [...availablePages]
+      });
+      
+      return newPage;
+    })
+  );
+  
+  await Promise.all(pagePromises);
   
   onProgress({ 
     step: 'complete', 
     message: 'Your complete story is ready!',
-    enticer: enticerRes.data.enticer,
     title: storyRes.data.title,
     summary: storyRes.data.summary,
     coverImage: coverRes.data.cover_image,
-    pages: finalPages,
+    pages: finalPages.sort((a, b) => pages.indexOf(a.text) - pages.indexOf(b.text)),
     availablePages: finalPages
   });
   

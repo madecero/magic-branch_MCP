@@ -1,4 +1,4 @@
-# image_agent.py (Updated)
+# image_agent.py
 import os
 import openai
 import requests
@@ -25,26 +25,17 @@ def generate_cover_image(story_data):
     
     story_pages = story_data.get("story_pages", [])
     character_descriptions = story_data.get("character_descriptions", {})
-    art_style = story_data.get("art_style", "whimsical, colorful children's book style")
+    art_style = story_data.get("art_style", "detailed, magical illustration in the style of Harry Potter book covers, with rich colors, intricate details, and a sense of mystery")
     context = story_data.get("context", {})
     
-    # ✅ BUILD COMPREHENSIVE CHARACTER DESCRIPTION (same as pages):
+    # BUILD COMPREHENSIVE CHARACTER DESCRIPTION
     char_desc_parts = []
     
-    # Add main character info from context - BE EXPLICIT ABOUT GENDER
     if context.get("name"):
         gender = context.get("gender", "neutral")
-        gender_desc = ""
-        if gender == "girl":
-            gender_desc = "girl"
-        elif gender == "boy":
-            gender_desc = "boy"
-        elif gender == "neutral":
-            gender_desc = "child"
-        
+        gender_desc = "child" if gender == "neutral" else gender
         char_desc_parts.append(f"Main character: {context.get('name')} is a {gender_desc}, age {context.get('age', 4)}")
     
-    # Add detailed character descriptions from story agent
     for name, desc in character_descriptions.items():
         char_desc_parts.append(f"{name}: {desc}")
     
@@ -54,16 +45,14 @@ def generate_cover_image(story_data):
 
     print(f"[image_agent] Character descriptions for cover: {char_desc_str}")
 
-    # Summarize story for cover to shorten prompt
     full_story_summary = " ".join(story_pages)[:800] + "..." if len(" ".join(story_pages)) > 800 else " ".join(story_pages)
 
-    # Generate book cover with space for text
     cover_prompt = (
-        f"{art_style} book cover illustration without any text. {char_desc_str} "
+        f"{art_style} book cover illustration. {char_desc_str} "
         f"Story summary: {full_story_summary} "
         "Depict all main characters together in a scene that captures the essence of the story. "
-        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area (e.g., soft gradient or simple pattern) suitable for text overlay, with no important elements or characters in that space. "
-        "Absolutely no text, letters, words, captions, titles, or any written elements in the image whatsoever; pure illustration only."
+        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
+        "Strictly no text, letters, words, captions, titles, or any written elements anywhere in the image; pure illustration only. Do not include any form of text under any circumstances."
     )
     
     print(f"[image_agent] Cover prompt: {cover_prompt}")
@@ -72,7 +61,7 @@ def generate_cover_image(story_data):
             model="dall-e-3",
             prompt=cover_prompt,
             n=1,
-            size="1024x1792",  # Taller aspect for full-screen feel with text space
+            size="1024x1792",
             quality="standard"
         )
         cover_url = response.data[0].url
@@ -89,27 +78,17 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
     if character_descriptions is None:
         character_descriptions = {}
     if art_style is None:
-        art_style = "whimsical, colorful children's book style"
+        art_style = "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery"
     if context is None:
         context = {}
     
-    # ✅ BUILD COMPREHENSIVE CHARACTER DESCRIPTION:
     char_desc_parts = []
     
-    # Add main character info from context - BE EXPLICIT ABOUT GENDER
     if context.get("name"):
         gender = context.get("gender", "neutral")
-        gender_desc = ""
-        if gender == "girl":
-            gender_desc = "girl"
-        elif gender == "boy":
-            gender_desc = "boy"
-        elif gender == "neutral":
-            gender_desc = "child"
-        
+        gender_desc = "child" if gender == "neutral" else gender
         char_desc_parts.append(f"Main character: {context.get('name')} is a {gender_desc}, age {context.get('age', 4)}")
     
-    # Add detailed character descriptions from story agent
     for name, desc in character_descriptions.items():
         char_desc_parts.append(f"{name}: {desc}")
     
@@ -120,11 +99,11 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
     print(f"[image_agent] Character descriptions for page {page_index + 1}: {char_desc_str}")
 
     prompt = (
-        f"{art_style} page illustration without any text. {char_desc_str} "
+        f"{art_style} page illustration. {char_desc_str} "
         f"Illustrate this scene: {text} "
         "Keep ALL characters visually identical to their detailed descriptions and the book cover - same hair, eyes, clothes, gender presentation, everything. "
-        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area (e.g., soft gradient or simple pattern) suitable for text overlay, with no important elements or characters in that space. "
-        "Absolutely no text, letters, words, captions, signs, or any written elements in the image whatsoever; pure illustration only."
+        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
+        "Strictly no text, letters, words, captions, signs, or any written elements anywhere in the image; pure illustration only. Do not include any form of text under any circumstances."
     )
     
     print(f"[image_agent] Page {page_index + 1} prompt: {prompt}")
@@ -133,7 +112,7 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
             model="dall-e-3",
             prompt=prompt,
             n=1,
-            size="1024x1792",  # Taller for mobile full-screen with text space
+            size="1024x1792",
             quality="standard"
         )
         image_url = response.data[0].url
@@ -156,7 +135,7 @@ async def generate_images(state):
         raise ValueError("Missing story_pages in state.")
 
     character_descriptions = state.get("character_descriptions", {})
-    art_style = state.get("art_style", "whimsical, colorful children's book style")
+    art_style = state.get("art_style", "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery")
     context = state.get("context", {})
 
     # Generate cover (sync for now, as it's single)

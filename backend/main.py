@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph_app import graph
-from story_agent import story_agent, generate_enticer
+from story_agent import generate_story
 from image_agent import generate_cover_image, generate_page_image
 
 app = FastAPI()
@@ -17,14 +17,6 @@ app.add_middleware(
 @app.get("/")
 def healthcheck():
     return {"status": "ok"}
-
-# New enticer endpoint
-@app.post("/generate-enticer")
-async def generate_enticer_only(request: Request):
-    data = await request.json()
-    print("[main] Enticer generation payload:", data)
-    enticer = await generate_enticer(data)
-    return {"enticer": enticer}
 
 # Original endpoint (keep for backward compatibility)
 @app.post("/generate")
@@ -43,7 +35,7 @@ async def generate_story_and_images(request: Request):
 async def generate_story_only(request: Request):
     data = await request.json()
     print("[main] Story generation payload:", data)
-    result = story_agent.invoke(data)
+    result = generate_story(data)
     print("[main] Story result:", result)
     return {
         "title": result.get("title"),
@@ -70,7 +62,7 @@ async def generate_page_image_only(request: Request):
         cover_image=data["coverImage"],
         page_index=data["pageIndex"],
         character_descriptions=data.get("character_descriptions", {}),
-        art_style=data.get("art_style", "whimsical, colorful children's book style"),
+        art_style=data.get("art_style", "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery"),
         context=data.get("context", {})
     )
     return {"image_url": image_url}

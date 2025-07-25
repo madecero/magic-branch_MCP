@@ -32,9 +32,7 @@ export default function StoryForm({ onStoryGenerated }: Props) {
         (step) => setCurrentStep(step)
       );
       
-      // Optionally call onStoryGenerated if needed for parent state, but we keep in progress UI
       onStoryGenerated(pages);
-      // Do NOT setIsGenerating(false) - stay in GenerationProgress for seamless reader experience
     } catch (error) {
       console.error('Story generation failed:', error);
       setIsGenerating(false);
@@ -42,12 +40,10 @@ export default function StoryForm({ onStoryGenerated }: Props) {
     }
   };
 
-  // Always show GenerationProgress once generation starts
   if (isGenerating && currentStep) {
     return <GenerationProgress step={currentStep} />;
   }
 
-  // Show initial form
   return (
     <div className="max-w-sm mx-auto p-6">
       <div className="text-center mb-6">

@@ -1,38 +1,11 @@
 # story_agent.py
 import os
-import asyncio
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnableLambda
 
 load_dotenv()
 llm = ChatOpenAI(model="gpt-4", temperature=0.8, api_key=os.getenv("OPENAI_API_KEY"))
-
-async def generate_enticer(payload):
-    """Generate a quick 2-3 sentence enticer to hook the user"""
-    print("[story_agent] Generating enticer...")
-    
-    name = payload.get("name", "the child")
-    age = payload.get("age", 4)
-    gender = payload.get("gender", "neutral")
-    interests = payload.get("interests", ["adventure"])
-    
-    interests_str = ", ".join(interests)
-    
-    enticer_prompt = (
-        f"Create an exciting 2-3 sentence teaser for a children's story about a {age}-year-old {gender} named {name} who loves {interests_str}. "
-        f"Make it magical and adventurous! End with something like 'What amazing adventures await? Stay tuned to find out!' "
-        f"Keep it short, exciting, and age-appropriate."
-    )
-    
-    result = llm.invoke([
-        {"role": "system", "content": "You are a master storyteller who creates exciting teasers that make children eager to hear more."},
-        {"role": "user", "content": enticer_prompt}
-    ])
-    
-    enticer = result.content.strip()
-    print(f"[story_agent] Generated enticer: {enticer}")
-    return enticer
 
 def generate_story(state):
     print("[story_agent] Received state:", state)
@@ -46,22 +19,22 @@ def generate_story(state):
     interests_str = ", ".join(interests)
     
     system_prompt = (
-        "You are a world-class children's storyteller who creates magical, age-appropriate stories. "
-        "Each story should be imaginative, positive, and engaging for young readers."
+        "You are a world-class children's storyteller inspired by 'The Alchemist', creating subtle, mystical stories with themes of destiny, self-discovery, and hidden wonders. "
+        "Magic is understated—more like synchronicities, inner wisdom, and natural mysteries than spells or wands. Stories are imaginative, positive, and engaging for young readers."
     )
     
     user_prompt = (
         f"Write a story for a {age}-year-old {gender} named {name} who enjoys {interests}. "
         f"IMPORTANT: {name} is a {gender}. Make sure this is clear throughout.\n"
         f"First, provide a short, magical title on its own line.\n"
-        f"Then, provide a 2-sentence summary that captures the magic and adventure of the story.\n"
+        f"Then, provide a 2-sentence summary that captures the subtle magic and adventure of the story.\n"
         f"Then, the story with exactly {length} vivid, sequential paragraphs.\n\n"
-        "After the story, separated by ---, provide detailed visual descriptions for the main character and any unique creatures mentioned (without naming them beyond generic terms like 'the unicorn'), in the format:\n"
+        "After the story, separated by ---, provide detailed visual descriptions for the main character and any unique creatures mentioned (without naming them beyond generic terms like 'the guide'), in the format:\n"
         "Character descriptions:\n"
         f"- Main Character {name}: {name} is a {gender}. Highly detailed visual description to ensure consistency across illustrations: specify exact hair color and style, eye color, skin tone, facial features, typical clothing (that remains the same throughout), build, and any distinctive traits. Make it consistent and suitable for a children's book illustration.\n"
         "- [Generic Creature]: Highly detailed visual description to ensure consistency (only if creatures appear), including exact colors, textures, features, and accessories.\n"
         "Finally, after another ---, provide:\n"
-        "Art style: A brief description of the illustration style (e.g., whimsical watercolor with vibrant colors and soft edges).\n"
+        "Art style: A brief description of the illustration style (e.g., detailed and mystical with rich colors, inspired by Harry Potter illustrations).\n"
         "Do not include these details in the story text itself."
     )
 
@@ -74,20 +47,18 @@ def generate_story(state):
     
     # Parse the result
     lines = content.split('\n')
-    title = lines[0].strip() if lines else f"{name}'s Adventure"
+    title = lines[0].strip() if lines else f"{name}'s Journey"
     
-    # Find summary (should be after title)
+    # Find summary
     summary = ""
     story_start_idx = 1
     for i, line in enumerate(lines[1:], 1):
         if line.strip() and not line.startswith('---'):
-            # Look for 2-sentence summary pattern
             if len(line.split('.')) >= 2 and len(line) < 300:
                 summary = line.strip()
                 story_start_idx = i + 1
                 break
     
-    # Split into sections
     full_text = '\n'.join(lines[story_start_idx:])
     sections = full_text.split('---')
     
@@ -107,7 +78,7 @@ def generate_story(state):
                     character_descriptions[char_name] = char_desc
 
     # Parse art style
-    art_style = "whimsical, colorful children's book style"
+    art_style = "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery"
     if len(sections) > 2:
         art_section = sections[2].strip()
         if art_section.startswith("Art style:"):

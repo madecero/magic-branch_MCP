@@ -7,10 +7,9 @@ import { Page } from '../types/page';
 
 interface Props {
   step: GenerationStep;
-  onReset?: () => void;  // Optional prop for resetting to new story (add to StoryForm if needed)
 }
 
-export default function GenerationProgress({ step, onReset }: Props) {
+export default function GenerationProgress({ step }: Props) {
   const [isReading, setIsReading] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [availablePages, setAvailablePages] = useState<Page[]>([]);
@@ -27,7 +26,6 @@ export default function GenerationProgress({ step, onReset }: Props) {
 
   const getProgressPercentage = () => {
     switch (step.step) {
-      case 'enticer': return 10;
       case 'story': return 25;
       case 'cover': return 40;
       case 'pages': 
@@ -42,7 +40,6 @@ export default function GenerationProgress({ step, onReset }: Props) {
 
   const getStepIcon = () => {
     switch (step.step) {
-      case 'enticer': return '✨';
       case 'story': return '📝';
       case 'cover': return '🎨';
       case 'pages': return '🖼️';
@@ -55,10 +52,10 @@ export default function GenerationProgress({ step, onReset }: Props) {
   const isComplete = step.step === 'complete';
 
   const funFacts = [
-    "Did you know? Dragons love ice cream on hot days! 🐉🍦",
-    "Fun fact: Unicorns can paint rainbows with their horns! 🦄🌈",
-    "Magical tip: Fairies hide treasures in flower petals! 🧚‍♀️🌸",
-    "Adventure alert: Pirates always share their gold with friends! 🏴‍☠️💰",
+    "Did you know? In ancient times, alchemists believed in turning lead into gold through subtle transformations!",
+    "Fun fact: The stars hold secrets of destiny, guiding adventurers on mysterious paths!",
+    "Magical tip: Sometimes, the greatest magic is found in quiet moments of reflection!",
+    "Adventure alert: True treasure lies in the journey of self-discovery!",
   ];
 
   const getRandomFunFact = () => funFacts[Math.floor(Math.random() * funFacts.length)];
@@ -90,15 +87,15 @@ export default function GenerationProgress({ step, onReset }: Props) {
           </p>
         </div>
 
-        {/* Page Content: Image fills screen, text overlays bottom */}
+        {/* Page Content: Image with text below for better readability */}
         <motion.div 
           key={currentPage.image}
           initial={{ scale: 0.95 }}
           animate={{ scale: 1 }}
-          className="flex-grow relative overflow-hidden"
+          className="flex-grow flex flex-col overflow-auto"
         >
-          {/* Full-screen Image */}
-          <div className="absolute inset-0">
+          {/* Image Section - Takes upper part, scalable */}
+          <div className="relative flex-shrink-0 h-[60vh]">
             <Image
               src={currentPage.image}
               alt={`Page ${currentPageIndex + 1}`}
@@ -119,18 +116,18 @@ export default function GenerationProgress({ step, onReset }: Props) {
             ) : null}
           </div>
           
-          {/* Text Overlay at Bottom with Semi-Transparent Backdrop */}
+          {/* Text Section - Below image, scrollable if long */}
           <motion.div 
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60 to-transparent text-white leading-relaxed text-lg"
+            className="p-6 bg-white text-gray-800 leading-relaxed text-lg overflow-auto"
           >
             {currentPage.text}
           </motion.div>
         </motion.div>
 
-        {/* Navigation: Floats at very bottom */}
+        {/* Navigation: Floats at bottom */}
         <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-between px-4">
           <button
             onClick={() => setCurrentPageIndex(currentPageIndex - 1)}
@@ -173,18 +170,6 @@ export default function GenerationProgress({ step, onReset }: Props) {
           </div>
         )}
 
-        {/* New Story Button on Complete */}
-        {isComplete && (
-          <div className="absolute bottom-20 left-0 right-0 z-10 text-center">
-            <button
-              onClick={onReset}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              ✨ Create New Story!
-            </button>
-          </div>
-        )}
-
         {/* Back to Overview Button */}
         <div className="absolute top-4 right-4 z-20">
           <button
@@ -214,15 +199,6 @@ export default function GenerationProgress({ step, onReset }: Props) {
         <div className="text-4xl">{getStepIcon()}</div>
         <p className="text-lg font-medium text-gray-800">{step.message}</p>
       </div>
-
-      {/* Enticer */}
-      {step.enticer && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border-l-4 border-purple-400">
-          <p className="text-gray-700 text-center leading-relaxed font-medium">
-            {step.enticer}
-          </p>
-        </div>
-      )}
 
       {/* Story Title & Summary */}
       {step.title && step.summary && (

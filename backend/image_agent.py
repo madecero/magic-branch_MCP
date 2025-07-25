@@ -1,4 +1,4 @@
-# image_agent.py
+# image_agent.py (Updated)
 import os
 import openai
 import requests

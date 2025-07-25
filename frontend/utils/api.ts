@@ -69,7 +69,7 @@ export const generateStoryProgressive = async (
         text,
         image: pageRes.data.image_url
       };
-      finalPages.push(newPage); // Note: finalPages may not be in order, but we can sort later if needed
+      finalPages.push(newPage);
       availablePages = [...availablePages, newPage].sort((a, b) => pages.indexOf(a.text) - pages.indexOf(b.text));
       
       onProgress({ 

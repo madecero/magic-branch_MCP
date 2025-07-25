@@ -51,16 +51,7 @@ export default function GenerationProgress({ step }: Props) {
   const canStartReading = availablePages.length >= 3;
   const isComplete = step.step === 'complete';
 
-  const funFacts = [
-    "Did you know? In ancient times, alchemists believed in turning lead into gold through subtle transformations!",
-    "Fun fact: The stars hold secrets of destiny, guiding adventurers on mysterious paths!",
-    "Magical tip: Sometimes, the greatest magic is found in quiet moments of reflection!",
-    "Adventure alert: True treasure lies in the journey of self-discovery!",
-  ];
-
-  const getRandomFunFact = () => funFacts[Math.floor(Math.random() * funFacts.length)];
-
-  // Reader View: Full-screen immersive with text overlay
+  // Reader View: Full-screen immersive with text below image
   if (isReading) {
     if (availablePages.length === 0) {
       return <div className="text-center p-8">Loading your story...</div>;
@@ -74,11 +65,10 @@ export default function GenerationProgress({ step }: Props) {
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
-        className="relative min-h-screen flex flex-col"  // Full-screen container
+        className="relative min-h-screen flex flex-col"
       >
-        {/* Header (minimal, floats top) */}
+        {/* Header (page number only) */}
         <div className="absolute top-4 left-0 right-0 z-20 text-center space-y-2 px-4">
-          {step.title && <h1 className="text-2xl font-bold text-gray-800 bg-white/80 rounded-lg py-1 px-3 inline-block">{step.title}</h1>}
           <p className="text-sm text-gray-600 bg-white/80 rounded-lg py-1 px-3 inline-block">
             Page {currentPageIndex + 1} of {availablePages.length}
             {!isComplete && availablePages.length < (step.totalPages || 0) && (
@@ -87,14 +77,14 @@ export default function GenerationProgress({ step }: Props) {
           </p>
         </div>
 
-        {/* Page Content: Image with text below for better readability */}
+        {/* Page Content: Image with text below */}
         <motion.div 
           key={currentPage.image}
           initial={{ scale: 0.95 }}
           animate={{ scale: 1 }}
           className="flex-grow flex flex-col overflow-auto"
         >
-          {/* Image Section - Takes upper part, scalable */}
+          {/* Image Section */}
           <div className="relative flex-shrink-0 h-[60vh]">
             <Image
               src={currentPage.image}
@@ -116,7 +106,7 @@ export default function GenerationProgress({ step }: Props) {
             ) : null}
           </div>
           
-          {/* Text Section - Below image, scrollable if long */}
+          {/* Text Section */}
           <motion.div 
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -127,7 +117,7 @@ export default function GenerationProgress({ step }: Props) {
           </motion.div>
         </motion.div>
 
-        {/* Navigation: Floats at bottom */}
+        {/* Navigation */}
         <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-between px-4">
           <button
             onClick={() => setCurrentPageIndex(currentPageIndex - 1)}
@@ -154,19 +144,12 @@ export default function GenerationProgress({ step }: Props) {
           </button>
         </div>
 
-        {/* Generation Status and Fun Facts (overlay if generating) */}
+        {/* Generation Status (no fun facts) */}
         {!isComplete && (
           <div className="absolute bottom-20 left-0 right-0 z-10 text-center p-4 bg-blue-50/80 rounded-lg mx-4 space-y-2">
             <p className="text-blue-700">
               🎨 Still creating more pages... Keep reading!
             </p>
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sm text-gray-600"
-            >
-              {getRandomFunFact()}
-            </motion.p>
           </div>
         )}
 
@@ -183,7 +166,7 @@ export default function GenerationProgress({ step }: Props) {
     );
   }
 
-  // Progress View (before starting reading)
+  // Progress View (no cover preview to avoid scrolling)
   return (
     <div className="max-w-lg mx-auto p-6 space-y-6">
       {/* Progress Bar */}
@@ -208,21 +191,6 @@ export default function GenerationProgress({ step }: Props) {
         </div>
       )}
       
-      {/* Cover Image Preview */}
-      {step.coverImage && (
-        <div className="space-y-3">
-          <p className="text-center text-sm font-medium text-gray-700">Your Book Cover</p>
-          <div className="relative w-56 h-80 mx-auto rounded-lg overflow-hidden shadow-lg">  {/* Taller preview */}
-            <Image
-              src={step.coverImage}
-              alt="Book cover"
-              fill
-              className="object-cover"
-            />
-          </div>
-        </div>
-      )}
-
       {/* Start Reading Button */}
       {canStartReading && (
         <div className="text-center">
@@ -254,7 +222,7 @@ export default function GenerationProgress({ step }: Props) {
         </div>
       )}
       
-      {/* Pulsing Animation and Fun Fact */}
+      {/* Pulsing Animation (no fun fact) */}
       {!isComplete && !canStartReading && (
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-pulse flex space-x-1">
@@ -262,13 +230,6 @@ export default function GenerationProgress({ step }: Props) {
             <div className="w-2 h-2 bg-blue-600 rounded-full animation-delay-200"></div>
             <div className="w-2 h-2 bg-blue-600 rounded-full animation-delay-400"></div>
           </div>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-sm text-gray-600"
-          >
-            {getRandomFunFact()}
-          </motion.p>
         </div>
       )}
     </div>

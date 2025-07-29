@@ -23,19 +23,26 @@ def generate_story(state):
         "Magic is understated—more like synchronicities, inner wisdom, and natural mysteries than spells or wands. Stories are imaginative, positive, and engaging for young readers."
     )
     
+    # ✅ MAKE THE PROMPT MORE EXPLICIT
     user_prompt = (
-        f"Write a story for a {age}-year-old {gender} named {name} who enjoys {interests}. "
-        f"IMPORTANT: {name} is a {gender}. Make sure this is clear throughout.\n"
-        f"First, provide a short, magical title on its own line.\n"
-        f"Then, provide a 2-sentence summary that captures the subtle magic and adventure of the story.\n"
-        f"Then, the story with exactly {length} vivid, sequential paragraphs.\n\n"
-        "After the story, separated by ---, provide detailed visual descriptions for the main character and any unique creatures mentioned (without naming them beyond generic terms like 'the guide'), in the format:\n"
-        "Character descriptions:\n"
-        f"- Main Character {name}: {name} is a {gender}. Highly detailed visual description to ensure consistency across illustrations: specify exact hair color and style, eye color, skin tone, facial features, typical clothing (that remains the same throughout), build, and any distinctive traits. Make it consistent and suitable for a children's book illustration.\n"
-        "- [Generic Creature]: Highly detailed visual description to ensure consistency (only if creatures appear), including exact colors, textures, features, and accessories.\n"
-        "Finally, after another ---, provide:\n"
-        "Art style: A brief description of the illustration style (e.g., detailed and mystical with rich colors, inspired by Harry Potter illustrations).\n"
-        "Do not include these details in the story text itself."
+        f"Write a story for a {age}-year-old {gender} named {name} who enjoys {interests_str}. "
+        f"IMPORTANT: {name} is a {gender}. Make sure this is clear throughout.\n\n"
+        
+        f"FORMAT YOUR RESPONSE EXACTLY LIKE THIS:\n"
+        f"TITLE: [Short magical title]\n"
+        f"SUMMARY: [2-sentence summary of the adventure]\n"
+        f"STORY:\n"
+        f"[Paragraph 1 of {length}]\n"
+        f"[Paragraph 2 of {length}]\n"
+        f"[Continue for exactly {length} paragraphs]\n"
+        f"---\n"
+        f"CHARACTER DESCRIPTIONS:\n"
+        f"- Main Character {name}: {name} is a {gender}. [Detailed visual description]\n"
+        f"- [Any other characters]: [Detailed descriptions]\n"
+        f"---\n"
+        f"ART STYLE: [Description of illustration style]\n\n"
+        
+        f"Make sure to include exactly {length} story paragraphs between STORY: and the first ---"
     )
 
     result = llm.invoke([
@@ -44,46 +51,93 @@ def generate_story(state):
     ])
     
     content = result.content.strip()
+    print(f"[story_agent] Raw LLM response: {content}")  # ✅ DEBUG LOG
     
-    # Parse the result
+    # ✅ MORE ROBUST PARSING
     lines = content.split('\n')
-    title = lines[0].strip() if lines else f"{name}'s Journey"
+    title = f"{name}'s Adventure"
+    summary = f"{name} discovers something magical and wonderful in this enchanting tale."
+    story_pages = []
+    character_descriptions = {}
+    art_style = "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery"
     
-    # Find summary
-    summary = ""
-    story_start_idx = 1
-    for i, line in enumerate(lines[1:], 1):
-        if line.strip() and not line.startswith('---'):
-            if len(line.split('.')) >= 2 and len(line) < 300:
-                summary = line.strip()
-                story_start_idx = i + 1
+    try:
+        # Find title
+        for line in lines:
+            if line.strip().upper().startswith('TITLE:'):
+                title = line.strip()[6:].strip()
+                break
+        
+        # Find summary
+        for line in lines:
+            if line.strip().upper().startswith('SUMMARY:'):
+                summary = line.strip()[8:].strip()
+                break
+        
+        # Find story section
+        story_start = -1
+        story_end = -1
+        for i, line in enumerate(lines):
+            if line.strip().upper().startswith('STORY:'):
+                story_start = i + 1
+            elif story_start != -1 and line.strip() == '---':
+                story_end = i
+                break
+        
+        if story_start != -1:
+            if story_end == -1:
+                story_end = len(lines)
+            
+            # Extract story paragraphs
+            story_lines = lines[story_start:story_end]
+            story_pages = [line.strip() for line in story_lines if line.strip()]
+            
+            # Ensure we have the right number of pages
+            if len(story_pages) != length:
+                print(f"[story_agent] Warning: Expected {length} pages, got {len(story_pages)}")
+        
+        # Find character descriptions
+        char_start = -1
+        char_end = -1
+        for i, line in enumerate(lines):
+            if 'CHARACTER DESCRIPTIONS:' in line.upper():
+                char_start = i + 1
+            elif char_start != -1 and line.strip() == '---':
+                char_end = i
+                break
+        
+        if char_start != -1:
+            if char_end == -1:
+                char_end = len(lines)
+            
+            for line in lines[char_start:char_end]:
+                if line.strip().startswith('- '):
+                    parts = line.strip()[2:].split(':', 1)
+                    if len(parts) == 2:
+                        char_name = parts[0].strip()
+                        char_desc = parts[1].strip()
+                        character_descriptions[char_name] = char_desc
+        
+        # Find art style
+        for line in lines:
+            if line.strip().upper().startswith('ART STYLE:'):
+                art_style = line.strip()[10:].strip()
                 break
     
-    full_text = '\n'.join(lines[story_start_idx:])
-    sections = full_text.split('---')
+    except Exception as e:
+        print(f"[story_agent] Parsing error: {e}")
     
-    story_text = sections[0].strip()
-    story_pages = [p.strip() for p in story_text.split('\n') if p.strip()]
+    # ✅ FALLBACK: If story_pages is empty, create a simple story
+    if not story_pages:
+        print("[story_agent] No story pages found, creating fallback story")
+        story_pages = [
+            f"{name} discovered a magical world filled with {interests_str}.",
+            f"With courage and wonder, {name} explored this enchanting place.",
+            f"{name} met friendly creatures who became great companions.",
+            f"Together, they went on amazing adventures full of joy and discovery.",
+            f"{name} returned home with a heart full of magical memories."
+        ][:length]  # Trim to requested length
     
-    # Parse character descriptions
-    character_descriptions = {}
-    if len(sections) > 1:
-        char_section = sections[1].strip()
-        for line in char_section.split('\n'):
-            if line.strip().startswith('- '):
-                parts = line.strip()[2:].split(':', 1)
-                if len(parts) == 2:
-                    char_name = parts[0].strip()
-                    char_desc = parts[1].strip()
-                    character_descriptions[char_name] = char_desc
-
-    # Parse art style
-    art_style = "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery"
-    if len(sections) > 2:
-        art_section = sections[2].strip()
-        if art_section.startswith("Art style:"):
-            art_style = art_section.replace("Art style:", "").strip()
-
     context = {
         "name": name,
         "age": age,
@@ -91,16 +145,18 @@ def generate_story(state):
         "interests": interests_str
     }
 
-    state.update({
+    final_state = {
         "title": title,
         "summary": summary,
         "story_pages": story_pages,
         "character_descriptions": character_descriptions,
         "art_style": art_style,
         "context": context
-    })
-
-    print("[story_agent] Returning updated state:", state)
+    }
+    
+    state.update(final_state)
+    
+    print(f"[story_agent] Final parsed state: title='{title}', summary='{summary}', pages={len(story_pages)}, chars={len(character_descriptions)}")
     return state
 
 story_agent = RunnableLambda(generate_story)

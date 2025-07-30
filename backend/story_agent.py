@@ -1,8 +1,8 @@
 # story_agent.py
 import os
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain_core.runnables import RunnableLambda
+from langchain_openai import ChatOpenAI # pyright: ignore[reportMissingImports]
+from langchain_core.runnables import RunnableLambda # pyright: ignore[reportMissingImports]
 
 load_dotenv()
 llm = ChatOpenAI(model="gpt-4", temperature=0.8, api_key=os.getenv("OPENAI_API_KEY"))

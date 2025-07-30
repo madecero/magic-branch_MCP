@@ -1,5 +1,6 @@
-# image_agent.py (Updated)
+# image_agent.py 
 import os
+import json
 import openai
 import requests
 import tempfile
@@ -10,6 +11,10 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
+# Add LLM for generating structured prompts (using ChatOpenAI for consistency with story_agent)
+from langchain_openai import ChatOpenAI # pyright: ignore[reportMissingImports]
+llm = ChatOpenAI(model="gpt-4", temperature=0.2, api_key=OPENAI_API_KEY)  # Lower temp for precise prompts
+
 def download_and_save_image(url):
     """Download an image and save it to a temp file, returning the file path."""
     response = requests.get(url)
@@ -19,8 +24,34 @@ def download_and_save_image(url):
     temp.close()
     return temp.name
 
+def generate_dalle_prompt(system_prompt, user_prompt):
+    """Helper to generate DALL-E prompt via LLM in JSON format."""
+    result = llm.invoke([
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ])
+    
+    content = result.content.strip()
+    print(f"[image_agent] Raw LLM prompt response: {content}")  # Log raw for debugging
+    
+    try:
+        parsed = json.loads(content)
+        dalle_prompt = parsed.get("prompt", "")
+        # Log key elements for visibility
+        print(f"[image_agent] Parsed DALL-E prompt: {dalle_prompt}")
+        if "reasoning" in parsed:
+            print(f"[image_agent] Prompt reasoning: {parsed.get('reasoning')}")
+        
+        if not dalle_prompt:
+            raise ValueError("No 'prompt' key in JSON")
+        
+        return dalle_prompt
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"[image_agent] JSON parsing error in prompt generation: {e}. Falling back to default.")
+        return "A magical children's book illustration in portrait mode."  # Simple fallback
+
 def generate_cover_image(story_data):
-    """Generate just the book cover image"""
+    """Generate just the book cover image using JSON-structured prompt."""
     print("[image_agent] Generating cover image")
     
     story_pages = story_data.get("story_pages", [])
@@ -47,21 +78,37 @@ def generate_cover_image(story_data):
 
     full_story_summary = " ".join(story_pages)[:800] + "..." if len(" ".join(story_pages)) > 800 else " ".join(story_pages)
 
-    cover_prompt = (
-        f"{art_style} book cover illustration. {char_desc_str} "
-        f"Story summary: {full_story_summary} "
-        "Depict all main characters together in a scene that captures the essence of the story. "
-        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
-        "Strictly no text, letters, words, captions, titles, or any written elements anywhere in the image; pure illustration only. Do not include any form of text under any circumstances."
+    # System prompt for LLM to generate DALL-E prompt in JSON
+    system_prompt = (
+        "You are an expert DALL-E prompt engineer for children's book covers. "
+        "Create highly detailed, consistent prompts that ensure visual continuity. "
+        "Output ONLY valid JSON (no extra text) with these keys: "
+        "'prompt': the full DALL-E prompt string, "
+        "'reasoning': a short explanation of why this prompt ensures consistency and quality."
     )
     
-    print(f"[image_agent] Cover prompt: {cover_prompt}")
+    user_prompt = (
+        f"Generate a DALL-E prompt for a book cover based on: "
+        f"Art style: {art_style}. "
+        f"{char_desc_str} "
+        f"Story summary: {full_story_summary}. "
+        "Depict all main characters together in a scene that captures the essence of the story. "
+        "Use a vertical, portrait-oriented composition to emphasize height and depth, suitable for a book cover. "
+        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
+        "ABSOLUTELY NO TEXT ALLOWED: Strictly no text, letters, words, captions, titles, signs, labels, or any written elements anywhere in the image; pure illustration only. "
+        "Do not include any form of text under any circumstances—this is critical and must be followed exactly. The image must be 100% text-free. "
+        "Ensure the prompt is optimized for DALL-E-3, vivid, and engaging for children."
+    )
+    
+    dalle_prompt = generate_dalle_prompt(system_prompt, user_prompt)
+    print(f"[image_agent] Final cover prompt: {dalle_prompt}")
+    
     try:
         response = openai.images.generate(
             model="dall-e-3",
-            prompt=cover_prompt,
+            prompt=dalle_prompt,
             n=1,
-            size="1024x1792",
+            size="1024x1792",  # Locked to portrait
             quality="standard"
         )
         cover_url = response.data[0].url
@@ -72,7 +119,7 @@ def generate_cover_image(story_data):
         return "https://dummyimage.com/600x400/ff0000/fff&text=Error+Cover"
 
 def generate_page_image(text, cover_image, page_index, character_descriptions=None, art_style=None, context=None):
-    """Generate a single page image using the cover as reference"""
+    """Generate a single page image using the cover as reference, with JSON-structured prompt."""
     print(f"[image_agent] Generating page {page_index + 1} image")
     
     if character_descriptions is None:
@@ -98,21 +145,37 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
 
     print(f"[image_agent] Character descriptions for page {page_index + 1}: {char_desc_str}")
 
-    prompt = (
-        f"{art_style} page illustration. {char_desc_str} "
-        f"Illustrate this scene: {text} "
-        "Keep ALL characters visually identical to their detailed descriptions and the book cover - same hair, eyes, clothes, gender presentation, everything. "
-        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
-        "Strictly no text, letters, words, captions, signs, or any written elements anywhere in the image; pure illustration only. Do not include any form of text under any circumstances."
+    # System prompt for LLM to generate DALL-E prompt in JSON
+    system_prompt = (
+        "You are an expert DALL-E prompt engineer for children's book page illustrations. "
+        "Create highly detailed, consistent prompts that match the book cover and ensure visual continuity across pages. "
+        "Output ONLY valid JSON (no extra text) with these keys: "
+        "'prompt': the full DALL-E prompt string, "
+        "'reasoning': a short explanation of why this prompt ensures consistency and quality."
     )
     
-    print(f"[image_agent] Page {page_index + 1} prompt: {prompt}")
+    user_prompt = (
+        f"Generate a DALL-E prompt for a story page illustration based on: "
+        f"Art style: {art_style}. "
+        f"{char_desc_str} "
+        f"Scene to illustrate: {text}. "
+        "Keep ALL characters visually identical to their detailed descriptions and the book cover - same hair, eyes, clothes, gender presentation, everything. "
+        "Use a vertical, portrait-oriented composition to emphasize height and depth, filling the tall frame naturally. "
+        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
+        "ABSOLUTELY NO TEXT ALLOWED: Strictly no text, letters, words, captions, signs, labels, or any written elements anywhere in the image; pure illustration only. "
+        "Do not include any form of text under any circumstances—this is critical and must be followed exactly. The image must be 100% text-free. "
+        "Ensure the prompt is optimized for DALL-E-3, vivid, and engaging for children."
+    )
+    
+    dalle_prompt = generate_dalle_prompt(system_prompt, user_prompt)
+    print(f"[image_agent] Final page {page_index + 1} prompt: {dalle_prompt}")
+    
     try:
         response = openai.images.generate(
             model="dall-e-3",
-            prompt=prompt,
+            prompt=dalle_prompt,
             n=1,
-            size="1024x1792",
+            size="1024x1792",  # Locked to portrait
             quality="standard"
         )
         image_url = response.data[0].url

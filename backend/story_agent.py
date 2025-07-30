@@ -1,5 +1,6 @@
 # story_agent.py
 import os
+import json  # Add this for parsing
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI # pyright: ignore[reportMissingImports]
 from langchain_core.runnables import RunnableLambda # pyright: ignore[reportMissingImports]
@@ -23,26 +24,25 @@ def generate_story(state):
         "Magic is understated—more like synchronicities, inner wisdom, and natural mysteries than spells or wands. Stories are imaginative, positive, and engaging for young readers."
     )
     
-    # ✅ MAKE THE PROMPT MORE EXPLICIT
+    # Updated prompt: Instruct for JSON output only, keeping your original content
     user_prompt = (
         f"Write a story for a {age}-year-old {gender} named {name} who enjoys {interests_str}. "
         f"IMPORTANT: {name} is a {gender}. Make sure this is clear throughout.\n\n"
         
-        f"FORMAT YOUR RESPONSE EXACTLY LIKE THIS:\n"
-        f"TITLE: [Short magical title]\n"
-        f"SUMMARY: [2-sentence summary of the adventure]\n"
-        f"STORY:\n"
-        f"[Paragraph 1 of {length}]\n"
-        f"[Paragraph 2 of {length}]\n"
-        f"[Continue for exactly {length} paragraphs]\n"
-        f"---\n"
-        f"CHARACTER DESCRIPTIONS:\n"
-        f"- Main Character {name}: {name} is a {gender}. [Detailed visual description]\n"
-        f"- [Any other characters]: [Detailed descriptions]\n"
-        f"---\n"
-        f"ART STYLE: [Description of illustration style]\n\n"
+        "Output ONLY valid JSON (no extra text, explanations, or markdown). Use this exact structure:\n"
+        "{\n"
+        '  "title": "[Short magical title]",\n'
+        '  "summary": "[2-sentence summary of the adventure]",\n'
+        '  "story_pages": ["[Paragraph 1]", "[Paragraph 2]", ...],  // Exactly ' + str(length) + ' paragraphs as an array\n'
+        '  "character_descriptions": {\n'
+        '    "Main Character ' + name + '": "' + name + ' is a ' + gender + '. [Detailed visual description]",\n'
+        '    "[Any other character name]": "[Detailed visual description]",\n'
+        '    // Add entries for all key characters\n'
+        '  },\n'
+        '  "art_style": "[Description of illustration style]"\n'
+        "}\n\n"
         
-        f"Make sure to include exactly {length} story paragraphs between STORY: and the first ---"
+        f"Ensure exactly {length} story paragraphs in the array."
     )
 
     result = llm.invoke([
@@ -51,83 +51,37 @@ def generate_story(state):
     ])
     
     content = result.content.strip()
-    print(f"[story_agent] Raw LLM response: {content}")  # ✅ DEBUG LOG
+    print(f"[story_agent] Raw LLM response: {content}")  # Log raw for debugging
     
-    # ✅ MORE ROBUST PARSING
-    lines = content.split('\n')
-    title = f"{name}'s Adventure"
-    summary = f"{name} discovers something magical and wonderful in this enchanting tale."
-    story_pages = []
-    character_descriptions = {}
-    art_style = "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery"
-    
+    # Parse JSON (much simpler and robust now)
     try:
-        # Find title
-        for line in lines:
-            if line.strip().upper().startswith('TITLE:'):
-                title = line.strip()[6:].strip()
-                break
+        parsed = json.loads(content)
+        title = parsed.get("title", f"{name}'s Adventure")
+        summary = parsed.get("summary", f"{name} discovers something magical and wonderful in this enchanting tale.")
+        story_pages = parsed.get("story_pages", [])
+        character_descriptions = parsed.get("character_descriptions", {})
+        art_style = parsed.get("art_style", "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery")
         
-        # Find summary
-        for line in lines:
-            if line.strip().upper().startswith('SUMMARY:'):
-                summary = line.strip()[8:].strip()
-                break
+        # Log key elements for visibility (as you requested)
+        print(f"[story_agent] Parsed title: {title}")
+        print(f"[story_agent] Parsed summary: {summary}")
+        print(f"[story_agent] Parsed story_pages (count: {len(story_pages)}): {story_pages}")
+        print(f"[story_agent] Parsed character_descriptions: {character_descriptions}")
+        print(f"[story_agent] Parsed art_style: {art_style}")
         
-        # Find story section
-        story_start = -1
-        story_end = -1
-        for i, line in enumerate(lines):
-            if line.strip().upper().startswith('STORY:'):
-                story_start = i + 1
-            elif story_start != -1 and line.strip() == '---':
-                story_end = i
-                break
-        
-        if story_start != -1:
-            if story_end == -1:
-                story_end = len(lines)
-            
-            # Extract story paragraphs
-            story_lines = lines[story_start:story_end]
-            story_pages = [line.strip() for line in story_lines if line.strip()]
-            
-            # Ensure we have the right number of pages
-            if len(story_pages) != length:
-                print(f"[story_agent] Warning: Expected {length} pages, got {len(story_pages)}")
-        
-        # Find character descriptions
-        char_start = -1
-        char_end = -1
-        for i, line in enumerate(lines):
-            if 'CHARACTER DESCRIPTIONS:' in line.upper():
-                char_start = i + 1
-            elif char_start != -1 and line.strip() == '---':
-                char_end = i
-                break
-        
-        if char_start != -1:
-            if char_end == -1:
-                char_end = len(lines)
-            
-            for line in lines[char_start:char_end]:
-                if line.strip().startswith('- '):
-                    parts = line.strip()[2:].split(':', 1)
-                    if len(parts) == 2:
-                        char_name = parts[0].strip()
-                        char_desc = parts[1].strip()
-                        character_descriptions[char_name] = char_desc
-        
-        # Find art style
-        for line in lines:
-            if line.strip().upper().startswith('ART STYLE:'):
-                art_style = line.strip()[10:].strip()
-                break
+        # Validate length
+        if len(story_pages) != length:
+            print(f"[story_agent] Warning: Expected {length} pages, got {len(story_pages)}")
+
+    except json.JSONDecodeError as e:
+        print(f"[story_agent] JSON parsing error: {e}. Falling back to defaults.")
+        title = f"{name}'s Adventure"
+        summary = f"{name} discovers something magical and wonderful in this enchanting tale."
+        story_pages = []
+        character_descriptions = {}
+        art_style = "detailed, magical illustration in the style of Harry Potter book illustrations, with rich colors, intricate details, and a sense of mystery"
     
-    except Exception as e:
-        print(f"[story_agent] Parsing error: {e}")
-    
-    # ✅ FALLBACK: If story_pages is empty, create a simple story
+    # Fallback: If story_pages is empty, create a simple story (now as list for JSON consistency)
     if not story_pages:
         print("[story_agent] No story pages found, creating fallback story")
         story_pages = [
@@ -136,7 +90,7 @@ def generate_story(state):
             f"{name} met friendly creatures who became great companions.",
             f"Together, they went on amazing adventures full of joy and discovery.",
             f"{name} returned home with a heart full of magical memories."
-        ][:length]  # Trim to requested length
+        ][:length]
     
     context = {
         "name": name,

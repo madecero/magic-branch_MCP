@@ -51,7 +51,7 @@ def generate_dalle_prompt(system_prompt, user_prompt):
         return "A magical children's book illustration in portrait mode."  # Simple fallback
 
 def generate_cover_image(story_data):
-    """Generate just the book cover image using JSON-structured prompt."""
+    """Generate just the book cover image with direct DALL-E prompt."""
     print("[image_agent] Generating cover image")
     
     story_pages = story_data.get("story_pages", [])
@@ -78,29 +78,22 @@ def generate_cover_image(story_data):
 
     full_story_summary = " ".join(story_pages)[:800] + "..." if len(" ".join(story_pages)) > 800 else " ".join(story_pages)
 
-    # System prompt for LLM to generate DALL-E prompt in JSON
-    system_prompt = (
-        "You are an expert DALL-E prompt engineer for children's book covers. "
-        "Create highly detailed, consistent prompts that ensure visual continuity. "
-        "Output ONLY valid JSON (no extra text) with these keys: "
-        "'prompt': the full DALL-E prompt string, "
-        "'reasoning': a short explanation of why this prompt ensures consistency and quality."
-    )
-    
-    user_prompt = (
-        f"Generate a DALL-E prompt for a book cover based on: "
-        f"Art style: {art_style}. "
+    # ✅ DIRECT DALL-E PROMPT - NO INTERMEDIATE LLM CALL
+    dalle_prompt = (
+        f"VERTICAL PORTRAIT orientation children's book cover illustration in {art_style}. "
         f"{char_desc_str} "
-        f"Story summary: {full_story_summary}. "
-        "Depict all main characters together in a scene that captures the essence of the story. "
+        f"Story summary: {full_story_summary} "
+        "Depict all main characters together in a magical scene that captures the story essence. "
         "Use a vertical, portrait-oriented composition to emphasize height and depth, suitable for a book cover. "
+        "The image must be taller than it is wide (portrait/vertical orientation). "
         "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
-        "ABSOLUTELY NO TEXT ALLOWED: Strictly no text, letters, words, captions, titles, signs, labels, or any written elements anywhere in the image; pure illustration only. "
-        "Do not include any form of text under any circumstances—this is critical and must be followed exactly. The image must be 100% text-free. "
-        "Ensure the prompt is optimized for DALL-E-3, vivid, and engaging for children."
+        "CRITICAL: This is a pure illustration with ZERO text elements. "
+        "Do not include any letters, words, titles, signs, books with readable text, scrolls with writing, "
+        "speech bubbles, captions, or any form of written language whatsoever. "
+        "No alphabet letters, no numbers, no symbols that could be interpreted as text. "
+        "This is a wordless illustration only, optimized for DALL-E-3, vivid, and engaging for children."
     )
     
-    dalle_prompt = generate_dalle_prompt(system_prompt, user_prompt)
     print(f"[image_agent] Final cover prompt: {dalle_prompt}")
     
     try:
@@ -116,10 +109,10 @@ def generate_cover_image(story_data):
         return cover_url
     except Exception as e:
         print(f"[image_agent] DALL·E API error for book cover: {e}")
-        return "https://dummyimage.com/600x400/ff0000/fff&text=Error+Cover"
+        return "https://dummyimage.com/1024x1792/ff0000/fff&text=Error+Cover"
 
 def generate_page_image(text, cover_image, page_index, character_descriptions=None, art_style=None, context=None):
-    """Generate a single page image using the cover as reference, with JSON-structured prompt."""
+    """Generate a single page image using the cover as reference, with direct DALL-E prompt."""
     print(f"[image_agent] Generating page {page_index + 1} image")
     
     if character_descriptions is None:
@@ -145,29 +138,23 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
 
     print(f"[image_agent] Character descriptions for page {page_index + 1}: {char_desc_str}")
 
-    # System prompt for LLM to generate DALL-E prompt in JSON
-    system_prompt = (
-        "You are an expert DALL-E prompt engineer for children's book page illustrations. "
-        "Create highly detailed, consistent prompts that match the book cover and ensure visual continuity across pages. "
-        "Output ONLY valid JSON (no extra text) with these keys: "
-        "'prompt': the full DALL-E prompt string, "
-        "'reasoning': a short explanation of why this prompt ensures consistency and quality."
-    )
-    
-    user_prompt = (
-        f"Generate a DALL-E prompt for a story page illustration based on: "
-        f"Art style: {art_style}. "
+    # ✅ DIRECT DALL-E PROMPT - NO INTERMEDIATE LLM CALL
+    dalle_prompt = (
+        f"VERTICAL PORTRAIT orientation children's book page illustration in {art_style}. "
         f"{char_desc_str} "
-        f"Scene to illustrate: {text}. "
-        "Keep ALL characters visually identical to their detailed descriptions and the book cover - same hair, eyes, clothes, gender presentation, everything. "
+        f"Illustrate this scene: {text} "
+        "Keep ALL characters visually identical to their detailed descriptions - same hair, eyes, clothes, gender presentation, everything. "
         "Use a vertical, portrait-oriented composition to emphasize height and depth, filling the tall frame naturally. "
+        "The image must be taller than it is wide (portrait/vertical orientation). "
         "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
-        "ABSOLUTELY NO TEXT ALLOWED: Strictly no text, letters, words, captions, signs, labels, or any written elements anywhere in the image; pure illustration only. "
-        "Do not include any form of text under any circumstances—this is critical and must be followed exactly. The image must be 100% text-free. "
-        "Ensure the prompt is optimized for DALL-E-3, vivid, and engaging for children."
+        "CRITICAL: This is a pure illustration with ZERO text elements. "
+        "Do not include any letters, words, signs, books with readable text, scrolls with writing, "
+        "speech bubbles, captions, labels, or any written elements anywhere in the image. "
+        "No alphabet letters, no numbers, no symbols that could be interpreted as text. "
+        "If there are books in the scene, they must be closed or show blank pages only. "
+        "This is a wordless illustration only, optimized for DALL-E-3, vivid, and engaging for children."
     )
     
-    dalle_prompt = generate_dalle_prompt(system_prompt, user_prompt)
     print(f"[image_agent] Final page {page_index + 1} prompt: {dalle_prompt}")
     
     try:
@@ -183,7 +170,7 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
         return image_url
     except Exception as e:
         print(f"[image_agent] DALL·E API error for page {page_index + 1}: {e}")
-        return f"https://dummyimage.com/600x400/ff0000/fff&text=Error+Page+{page_index + 1}"
+        return f"https://dummyimage.com/1024x1792/ff0000/fff&text=Error+Page+{page_index + 1}"
 
 async def generate_page_image_async(text, cover_image, page_index, character_descriptions=None, art_style=None, context=None):
     """Async wrapper for generate_page_image"""

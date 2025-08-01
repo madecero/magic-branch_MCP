@@ -1,4 +1,4 @@
-# image_agent.py 
+# image_agent.py (updated for stronger vertical composition enforcement)
 import os
 import json
 import openai
@@ -59,39 +59,37 @@ def generate_cover_image(story_data):
     art_style = story_data.get("art_style", "detailed, magical illustration in the style of Harry Potter book covers, with rich colors, intricate details, and a sense of mystery")
     context = story_data.get("context", {})
     
-    # BUILD COMPREHENSIVE CHARACTER DESCRIPTION
+    # BUILD COMPREHENSIVE CHARACTER DESCRIPTION (concise version)
     char_desc_parts = []
     
     if context.get("name"):
         gender = context.get("gender", "neutral")
         gender_desc = "child" if gender == "neutral" else gender
-        char_desc_parts.append(f"Main character: {context.get('name')} is a {gender_desc}, age {context.get('age', 4)}")
+        char_desc_parts.append(f"Main: {context.get('name')}, {gender_desc} age {context.get('age', 4)}")
     
     for name, desc in character_descriptions.items():
-        char_desc_parts.append(f"{name}: {desc}")
+        # Truncate desc to essentials to shorten
+        short_desc = desc[:100] + "..." if len(desc) > 100 else desc
+        char_desc_parts.append(f"{name}: {short_desc}")
     
-    char_desc_str = ". ".join(char_desc_parts) if char_desc_parts else ""
+    char_desc_str = "; ".join(char_desc_parts) if char_desc_parts else ""
     if char_desc_str:
-        char_desc_str = f"Character details: {char_desc_str}."
+        char_desc_str = f"Characters: {char_desc_str}."
 
     print(f"[image_agent] Character descriptions for cover: {char_desc_str}")
 
-    full_story_summary = " ".join(story_pages)[:800] + "..." if len(" ".join(story_pages)) > 800 else " ".join(story_pages)
+    full_story_summary = " ".join(story_pages)[:600] + "..." if len(" ".join(story_pages)) > 600 else " ".join(story_pages)  # Shorten summary
 
-    # ✅ DIRECT DALL-E PROMPT - NO INTERMEDIATE LLM CALL
+    # ✅ ENHANCED DALL-E PROMPT: Stronger emphasis on native vertical composition to prevent "sideways" feel
     dalle_prompt = (
-        f"VERTICAL PORTRAIT orientation children's book cover illustration in {art_style}. "
+        "CRITICAL: Native VERTICAL PORTRAIT orientation ONLY - 9:16 aspect ratio, height exceeds width, composition designed tall and narrow from the start, NOT rotated from horizontal. "
+        "Scene flows top-to-bottom with vertical elements like tall structures, cascading actions, or stacked subjects. ABSOLUTELY ZERO text, letters, words, signs, labels, or symbols. "
+        "No readable elements at all. "
+        f"Illustrate in {art_style}. "
         f"{char_desc_str} "
-        f"Story summary: {full_story_summary} "
-        "Depict all main characters together in a magical scene that captures the story essence. "
-        "Use a vertical, portrait-oriented composition to emphasize height and depth, suitable for a book cover. "
-        "The image must be taller than it is wide (portrait/vertical orientation). "
-        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
-        "CRITICAL: This is a pure illustration with ZERO text elements. "
-        "Do not include any letters, words, titles, signs, books with readable text, scrolls with writing, "
-        "speech bubbles, captions, or any form of written language whatsoever. "
-        "No alphabet letters, no numbers, no symbols that could be interpreted as text. "
-        "This is a wordless illustration only, optimized for DALL-E-3, vivid, and engaging for children."
+        f"Scene: Magical book cover showing main characters in a scene capturing story essence: {full_story_summary}. "
+        "Keep characters consistent. Fill tall frame vertically but leave bottom third subtle for text overlay (no key elements there). "
+        "Ensure native portrait layout: do not create horizontal then rotate. ABSOLUTELY NO TEXT ANYWHERE - wordless only. Vivid, engaging for children."
     )
     
     print(f"[image_agent] Final cover prompt: {dalle_prompt}")
@@ -122,37 +120,37 @@ def generate_page_image(text, cover_image, page_index, character_descriptions=No
     if context is None:
         context = {}
     
+    # Concise character desc
     char_desc_parts = []
     
     if context.get("name"):
         gender = context.get("gender", "neutral")
         gender_desc = "child" if gender == "neutral" else gender
-        char_desc_parts.append(f"Main character: {context.get('name')} is a {gender_desc}, age {context.get('age', 4)}")
+        char_desc_parts.append(f"Main: {context.get('name')}, {gender_desc} age {context.get('age', 4)}")
     
     for name, desc in character_descriptions.items():
-        char_desc_parts.append(f"{name}: {desc}")
+        short_desc = desc[:100] + "..." if len(desc) > 100 else desc
+        char_desc_parts.append(f"{name}: {short_desc}")
     
-    char_desc_str = ". ".join(char_desc_parts) if char_desc_parts else ""
+    char_desc_str = "; ".join(char_desc_parts) if char_desc_parts else ""
     if char_desc_str:
-        char_desc_str = f"Character details: {char_desc_str}."
+        char_desc_str = f"Characters: {char_desc_str}."
 
     print(f"[image_agent] Character descriptions for page {page_index + 1}: {char_desc_str}")
 
-    # ✅ DIRECT DALL-E PROMPT - NO INTERMEDIATE LLM CALL
+    # Shorten scene text if too long
+    short_text = text[:400] + "..." if len(text) > 400 else text
+
+    # ✅ ENHANCED DALL-E PROMPT: Stronger emphasis on native vertical composition to prevent "sideways" feel
     dalle_prompt = (
-        f"VERTICAL PORTRAIT orientation children's book page illustration in {art_style}. "
+        "CRITICAL: Native VERTICAL PORTRAIT orientation ONLY - 9:16 aspect ratio, height exceeds width, composition designed tall and narrow from the start, NOT rotated from horizontal. "
+        "Scene flows top-to-bottom with vertical elements like tall structures, cascading actions, or stacked subjects. ABSOLUTELY ZERO text, letters, words, signs, labels, or symbols. "
+        "No readable elements at all. If books appear, show closed or blank. "
+        f"Illustrate in {art_style}. "
         f"{char_desc_str} "
-        f"Illustrate this scene: {text} "
-        "Keep ALL characters visually identical to their detailed descriptions - same hair, eyes, clothes, gender presentation, everything. "
-        "Use a vertical, portrait-oriented composition to emphasize height and depth, filling the tall frame naturally. "
-        "The image must be taller than it is wide (portrait/vertical orientation). "
-        "Compose the illustration to fill the frame but leave the bottom third as a subtle, non-distracting background area suitable for text overlay, with no important elements or characters in that space. "
-        "CRITICAL: This is a pure illustration with ZERO text elements. "
-        "Do not include any letters, words, signs, books with readable text, scrolls with writing, "
-        "speech bubbles, captions, labels, or any written elements anywhere in the image. "
-        "No alphabet letters, no numbers, no symbols that could be interpreted as text. "
-        "If there are books in the scene, they must be closed or show blank pages only. "
-        "This is a wordless illustration only, optimized for DALL-E-3, vivid, and engaging for children."
+        f"Scene: {short_text}. "
+        "Keep ALL characters identical: same hair, eyes, clothes, etc. Fill tall frame vertically but leave bottom third subtle for text overlay (no key elements there). "
+        "Ensure native portrait layout: do not create horizontal then rotate. ABSOLUTELY NO TEXT ANYWHERE - wordless only. Vivid, engaging for children."
     )
     
     print(f"[image_agent] Final page {page_index + 1} prompt: {dalle_prompt}")

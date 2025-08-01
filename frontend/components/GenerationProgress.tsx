@@ -1,7 +1,7 @@
 // GenerationProgress.tsx 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { GenerationStep } from '../utils/api';
 import { Page } from '../types/page';
@@ -11,10 +11,38 @@ interface Props {
   step: GenerationStep;
 }
 
+const flipVariants = {
+  initial: (direction: number) => ({
+    x: direction > 0 ? 300 : -300,
+    opacity: 0,
+    scale: 0.8,
+  }),
+  animate: {
+    x: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { 
+      duration: 0.5, 
+      ease: [0.23, 1, 0.32, 1] as const, // Custom bezier curve for smooth page turn
+      x: { type: "spring" as const, stiffness: 300, damping: 30 },
+    },
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? -300 : 300,
+    opacity: 0,
+    scale: 0.8,
+    transition: { 
+      duration: 0.4, 
+      ease: [0.76, 0, 0.24, 1] as const, // Different easing for exit
+    },
+  }),
+};
+
 export default function GenerationProgress({ step }: Props) {
   const [isReading, setIsReading] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [availablePages, setAvailablePages] = useState<Page[]>([]);
+  const [direction, setDirection] = useState(0); // 1 for next (forward), -1 for prev (backward)
 
   useEffect(() => {
     if (step.availablePages) {
@@ -56,12 +84,14 @@ export default function GenerationProgress({ step }: Props) {
   // Swipe handlers (works on touch/mobile and mouse drag on web)
   const handlers = useSwipeable({
     onSwipedLeft: () => {
-      if (currentPageIndex < availablePages.length - 1) {
+      if (currentPageIndex < fullPages.length - 1) {
+        setDirection(1);
         setCurrentPageIndex(currentPageIndex + 1);
       }
     },
     onSwipedRight: () => {
       if (currentPageIndex > 0) {
+        setDirection(-1);
         setCurrentPageIndex(currentPageIndex - 1);
       }
     },
@@ -69,86 +99,95 @@ export default function GenerationProgress({ step }: Props) {
     preventScrollOnSwipe: true,
   });
 
+  // Full pages including cover (only when complete)
+  const fullPages: Page[] = isReading && step.coverImage && availablePages
+    ? [{ text: '', image: step.coverImage }, ...availablePages]
+    : [];
+
   // Reader View: Full-screen immersive with text below image, swipe-enabled
   if (isReading) {
-    if (availablePages.length === 0) {
+    if (fullPages.length === 0) {
       return <div className="text-center p-8">Loading your story...</div>;
     }
 
-    const currentPage = availablePages[currentPageIndex];
+    const currentPage = fullPages[currentPageIndex];
+    const isCover = currentPageIndex === 0 && !currentPage.text;
 
     return (
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
-        className="relative min-h-screen flex flex-col"
+        className="relative min-h-screen flex flex-col overflow-hidden"
         {...handlers} // Attach swipe handlers to the whole view
       >
-        {/* Header (page number only) */}
-        <div className="absolute top-4 left-0 right-0 z-20 text-center space-y-2 px-4">
-          <p className="text-sm text-gray-600 bg-white/80 rounded-lg py-1 px-3 inline-block">
-            Page {currentPageIndex + 1} of {availablePages.length}
-          </p>
+        {/* Dynamic Header */}
+        <div className="absolute top-0 left-0 right-0 z-20 text-center space-y-2 px-4 py-4">
+          {isCover ? (
+            <h1 className="text-2xl font-bold text-gray-800 bg-white/80 rounded-lg py-2 px-4 inline-block">
+              {step.title}
+            </h1>
+          ) : (
+            <p className="text-sm text-gray-600 bg-white/80 rounded-lg py-1 px-3 inline-block">
+              Page {currentPageIndex} of {fullPages.length - 1}
+            </p>
+          )}
         </div>
 
-        {/* Page Content: Image with text below */}
-        <motion.div 
-          key={currentPage.image}
-          initial={{ scale: 0.95 }}
-          animate={{ scale: 1 }}
-          className="flex-grow flex flex-col overflow-auto"
-        >
-          {/* Image Section */}
-          <div className="relative flex-shrink-0 h-[60vh]">
-            <Image
-              src={currentPage.image}
-              alt={`Page ${currentPageIndex + 1}`}
-              fill
-              className="object-cover"
-            />
-            {currentPage.image.includes('dummyimage') || currentPage.image.includes('placeholder') ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/70">
-                <motion.div 
-                  animate={{ rotate: 360 }} 
-                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} 
-                  className="text-4xl mr-2"
-                >
-                  ✨
-                </motion.div>
-                <p className="text-blue-600">Conjuring image...</p>
-              </div>
-            ) : null}
-          </div>
-          
-          {/* Text Section */}
+        {/* Page Content: Image with optional text below */}
+        <AnimatePresence mode="wait">
           <motion.div 
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="p-6 bg-white text-gray-800 leading-relaxed text-lg overflow-auto"
+            key={currentPage.image}
+            custom={direction}
+            variants={flipVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="flex-grow flex flex-col"
           >
-            {currentPage.text}
+            {/* Image Section - Full height for cover, fixed for pages */}
+            <div className={`relative ${isCover ? 'flex-grow' : 'flex-shrink-0 h-[60vh]'}`}>
+              <Image
+                src={currentPage.image}
+                alt={isCover ? 'Book Cover' : `Page ${currentPageIndex}`}
+                fill
+                className="object-cover"
+              />
+              {currentPage.image.includes('dummyimage') || currentPage.image.includes('placeholder') ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+                  <motion.div 
+                    animate={{ rotate: 360 }} 
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} 
+                    className="text-4xl mr-2"
+                  >
+                    ✨
+                  </motion.div>
+                  <p className="text-blue-600">Conjuring image...</p>
+                </div>
+              ) : null}
+            </div>
+            
+            {/* Text Section - Only if text exists */}
+            {currentPage.text && (
+              <motion.div 
+                initial={{ y: 50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="p-6 bg-white text-gray-800 leading-relaxed text-lg overflow-auto"
+              >
+                {currentPage.text}
+              </motion.div>
+            )}
           </motion.div>
-        </motion.div>
+        </AnimatePresence>
 
-        {/* Back to Overview Button */}
-        <div className="absolute top-4 right-4 z-20">
-          <button
-            onClick={() => setIsReading(false)}
-            className="text-white hover:text-gray-300 font-medium bg-black/50 rounded-full px-3 py-1"
-          >
-            ← Overview
-          </button>
-        </div>
-
-        {/* Swipe Hint Footer - Only on first page, persistent */}
-        {currentPageIndex === 0 && (
+        {/* Swipe Hint Footer - Only on cover, persistent */}
+        {isCover && (
           <motion.div 
             initial={{ opacity: 1 }}
             className="absolute bottom-4 left-0 right-0 z-20 text-center"
           >
             <p className="text-sm text-gray-500 bg-white/80 rounded-lg py-1 px-3 inline-block shadow-sm">
-              Swipe left/right to turn pages
+              Swipe to turn the page
             </p>
           </motion.div>
         )}

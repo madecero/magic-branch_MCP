@@ -1,4 +1,5 @@
-// StoryForm.tsx (updated labels for parent perspective)
+// StoryForm.tsx
+
 import { useState } from "react";
 import { generateStoryProgressive, GenerationStep } from "../utils/api";
 import { Page } from "../types/page";
@@ -13,7 +14,6 @@ export default function StoryForm({ onStoryGenerated }: Props) {
   const [gender, setGender] = useState("neutral");
   const [age, setAge] = useState(4);
   const [interests, setInterests] = useState("");
-  const [length, setLength] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<GenerationStep | null>(null);
 
@@ -28,7 +28,7 @@ export default function StoryForm({ onStoryGenerated }: Props) {
           gender,
           age,
           interests: interests.split(",").map(i => i.trim()),
-          length,
+          length: 5,  // Hardcoded to 5
         },
         (step) => setCurrentStep(step)
       );
@@ -112,21 +112,6 @@ export default function StoryForm({ onStoryGenerated }: Props) {
             onChange={e => setInterests(e.target.value)}
             required
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Story length
-          </label>
-          <select
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            value={length}
-            onChange={e => setLength(Number(e.target.value))}
-          >
-            {[3, 5, 7, 10].map(n => (
-              <option key={n} value={n}>{n} Pages</option>
-            ))}
-          </select>
         </div>
 
         <button

@@ -75,7 +75,7 @@ export const generateStoryProgressive = async (
       onProgress({ 
         step: 'pages', 
         message: availablePages.length >= 3 
-          ? `${availablePages.length >= pages.length ? 'Your story is complete!' : 'Keep reading while we finish up...'}` 
+          ? `${availablePages.length >= pages.length ? 'Your story is complete!' : 'Sprinkling stardust on the final illustrations...'}` 
           : `Almost ready to start reading...`,
         title: storyRes.data.title,
         summary: storyRes.data.summary,

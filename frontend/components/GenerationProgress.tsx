@@ -140,6 +140,18 @@ export default function GenerationProgress({ step }: Props) {
             ← Overview
           </button>
         </div>
+
+        {/* Swipe Hint Footer - Only on first page, persistent */}
+        {currentPageIndex === 0 && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            className="absolute bottom-4 left-0 right-0 z-20 text-center"
+          >
+            <p className="text-sm text-gray-500 bg-white/80 rounded-lg py-1 px-3 inline-block shadow-sm">
+              Swipe left/right to turn pages
+            </p>
+          </motion.div>
+        )}
       </motion.div>
     );
   }

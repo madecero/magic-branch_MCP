@@ -8,3 +8,6 @@ uvicorn
 python-dotenv
 requests
 replicate
+react-swipeable
+framer-motion
+react-hot-toast

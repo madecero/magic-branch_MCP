@@ -1,3 +1,4 @@
+// StoryForm.tsx (updated labels for parent perspective)
 import { useState } from "react";
 import { generateStoryProgressive, GenerationStep } from "../utils/api";
 import { Page } from "../types/page";
@@ -48,21 +49,21 @@ export default function StoryForm({ onStoryGenerated }: Props) {
     <div className="max-w-sm mx-auto p-6">
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">
-          ✨ Create Your Story
+          ✨ Create Your Child's Story
         </h1>
         <p className="text-gray-600 text-sm">
-          Tell us about yourself and we'll create a magical personalized story!
+          Tell us about your child and we'll create a magical personalized story!
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            What's your name?
+            What's your child's name?
           </label>
           <input
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter your name"
+            placeholder="Enter your child's name"
             value={name}
             onChange={e => setName(e.target.value)}
             required
@@ -71,7 +72,7 @@ export default function StoryForm({ onStoryGenerated }: Props) {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            I am a...
+            Your child is a...
           </label>
           <select
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -86,7 +87,7 @@ export default function StoryForm({ onStoryGenerated }: Props) {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            How old are you?
+            How old is your child?
           </label>
           <input
             type="number"
@@ -102,7 +103,7 @@ export default function StoryForm({ onStoryGenerated }: Props) {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            What do you love? (separate with commas)
+            What does your child love? (separate with commas)
           </label>
           <input
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -133,7 +134,7 @@ export default function StoryForm({ onStoryGenerated }: Props) {
           type="submit"
           disabled={isGenerating}
         >
-          {isGenerating ? "Creating Magic..." : "Create My Story ✨"}
+          {isGenerating ? "Creating Magic..." : "Create My Child's Story ✨"}
         </button>
       </form>
     </div>

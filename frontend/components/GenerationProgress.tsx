@@ -1,9 +1,11 @@
+// GenerationProgress.tsx 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { GenerationStep } from '../utils/api';
 import { Page } from '../types/page';
+import { useSwipeable } from 'react-swipeable';
 
 interface Props {
   step: GenerationStep;
@@ -48,32 +50,44 @@ export default function GenerationProgress({ step }: Props) {
     }
   };
 
-  const canStartReading = availablePages.length >= 3;
   const isComplete = step.step === 'complete';
+  const canStartReading = isComplete; // Changed: only when fully complete
 
-  // Reader View: Full-screen immersive with text below image
+  // Swipe handlers (works on touch/mobile and mouse drag on web)
+  const handlers = useSwipeable({
+    onSwipedLeft: () => {
+      if (currentPageIndex < availablePages.length - 1) {
+        setCurrentPageIndex(currentPageIndex + 1);
+      }
+    },
+    onSwipedRight: () => {
+      if (currentPageIndex > 0) {
+        setCurrentPageIndex(currentPageIndex - 1);
+      }
+    },
+    trackMouse: true, // Enables mouse drag on web
+    preventScrollOnSwipe: true,
+  });
+
+  // Reader View: Full-screen immersive with text below image, swipe-enabled
   if (isReading) {
     if (availablePages.length === 0) {
       return <div className="text-center p-8">Loading your story...</div>;
     }
 
     const currentPage = availablePages[currentPageIndex];
-    const canGoNext = currentPageIndex < availablePages.length - 1;
-    const canGoPrev = currentPageIndex > 0;
 
     return (
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         className="relative min-h-screen flex flex-col"
+        {...handlers} // Attach swipe handlers to the whole view
       >
         {/* Header (page number only) */}
         <div className="absolute top-4 left-0 right-0 z-20 text-center space-y-2 px-4">
           <p className="text-sm text-gray-600 bg-white/80 rounded-lg py-1 px-3 inline-block">
             Page {currentPageIndex + 1} of {availablePages.length}
-            {!isComplete && availablePages.length < (step.totalPages || 0) && (
-              <span className="text-blue-600"> (More pages coming...)</span>
-            )}
           </p>
         </div>
 
@@ -117,42 +131,6 @@ export default function GenerationProgress({ step }: Props) {
           </motion.div>
         </motion.div>
 
-        {/* Navigation */}
-        <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-between px-4">
-          <button
-            onClick={() => setCurrentPageIndex(currentPageIndex - 1)}
-            disabled={!canGoPrev}
-            className={`px-6 py-2 rounded-lg font-medium transition-all ${
-              canGoPrev
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            ← Previous
-          </button>
-
-          <button
-            onClick={() => setCurrentPageIndex(currentPageIndex + 1)}
-            disabled={!canGoNext}
-            className={`px-6 py-2 rounded-lg font-medium transition-all ${
-              canGoNext
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            Next →
-          </button>
-        </div>
-
-        {/* Generation Status (no fun facts) */}
-        {!isComplete && (
-          <div className="absolute bottom-20 left-0 right-0 z-10 text-center p-4 bg-blue-50/80 rounded-lg mx-4 space-y-2">
-            <p className="text-blue-700">
-              🎨 Still creating more pages... Keep reading!
-            </p>
-          </div>
-        )}
-
         {/* Back to Overview Button */}
         <div className="absolute top-4 right-4 z-20">
           <button
@@ -166,9 +144,24 @@ export default function GenerationProgress({ step }: Props) {
     );
   }
 
-  // Progress View (no cover preview to avoid scrolling)
+  // Progress View (added cover preview under summary, moved pulsing above)
   return (
     <div className="max-w-lg mx-auto p-6 space-y-6">
+      {/* Start Reading Button (always on top if ready) */}
+      {canStartReading && (
+        <div className="text-center sticky top-0 bg-white z-10 py-4 -mx-6 px-6 shadow-md">
+          <button
+            onClick={() => setIsReading(true)}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg w-full"
+          >
+            📖 Read Your Complete Story!
+          </button>
+          <p className="text-sm text-green-600 font-medium mt-2">
+            ✅ All {step.totalPages} pages are ready!
+          </p>
+        </div>
+      )}
+
       {/* Progress Bar */}
       <div className="w-full bg-gray-200 rounded-full h-2">
         <div 
@@ -183,53 +176,32 @@ export default function GenerationProgress({ step }: Props) {
         <p className="text-lg font-medium text-gray-800">{step.message}</p>
       </div>
 
-      {/* Story Title & Summary */}
-      {step.title && step.summary && (
-        <div className="bg-blue-50 rounded-lg p-4 space-y-3">
-          <h2 className="text-xl font-bold text-center text-gray-800">{step.title}</h2>
-          <p className="text-gray-700 text-center leading-relaxed">{step.summary}</p>
-        </div>
-      )}
-      
-      {/* Start Reading Button */}
-      {canStartReading && (
-        <div className="text-center">
-          {!isComplete ? (
-            <>
-              <button
-                onClick={() => setIsReading(true)}
-                className="bg-gradient-to-r from-green-600 to-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                🚀 Start Reading Your Story!
-              </button>
-              <p className="text-sm text-gray-600 mt-2">
-                {availablePages.length} of {step.totalPages} pages ready
-              </p>
-            </>
-          ) : (
-            <div className="space-y-3">
-              <button
-                onClick={() => setIsReading(true)}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                📖 Read Your Complete Story!
-              </button>
-              <p className="text-sm text-green-600 font-medium">
-                ✅ All {step.totalPages} pages are ready!
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* Pulsing Animation (no fun fact) */}
-      {!isComplete && !canStartReading && (
+      {/* Pulsing Animation (moved above summary) */}
+      {!isComplete && (
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-pulse flex space-x-1">
             <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
             <div className="w-2 h-2 bg-blue-600 rounded-full animation-delay-200"></div>
             <div className="w-2 h-2 bg-blue-600 rounded-full animation-delay-400"></div>
           </div>
+        </div>
+      )}
+
+      {/* Story Title & Summary with Cover Below */}
+      {step.title && step.summary && (
+        <div className="bg-blue-50 rounded-lg p-4 space-y-3">
+          <h2 className="text-xl font-bold text-center text-gray-800">{step.title}</h2>
+          <p className="text-gray-700 text-center leading-relaxed">{step.summary}</p>
+          {step.coverImage && (
+            <div className="relative h-64 mx-auto max-w-xs">
+              <Image
+                src={step.coverImage}
+                alt="Book Cover"
+                fill
+                className="object-contain rounded-lg"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

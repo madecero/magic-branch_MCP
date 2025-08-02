@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { flushSync } from 'react-dom';
 import toast from 'react-hot-toast';
 import { GenerationStep } from '../utils/api';
 import { Page } from '../types/page';
@@ -85,13 +86,13 @@ export default function GenerationProgress({ step }: Props) {
   const handlers = useSwipeable({
     onSwipedLeft: () => {
       if (currentPageIndex < fullPages.length - 1) {
-        setDirection(1);
+        flushSync(() => setDirection(1));
         setCurrentPageIndex(currentPageIndex + 1);
       }
     },
     onSwipedRight: () => {
       if (currentPageIndex > 0) {
-        setDirection(-1);
+        flushSync(() => setDirection(-1));
         setCurrentPageIndex(currentPageIndex - 1);
       }
     },
@@ -172,7 +173,7 @@ export default function GenerationProgress({ step }: Props) {
                 initial={{ y: 50, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="p-6 bg-white text-gray-800 leading-relaxed text-lg overflow-auto"
+                className="flex-1 p-6 bg-white text-gray-800 leading-relaxed text-lg overflow-auto"
               >
                 {currentPage.text}
               </motion.div>

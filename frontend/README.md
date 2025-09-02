@@ -1,40 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+## Frontend (Next.js) – Story & Illustration Generator UI
 
-## Getting Started
+This frontend provides a progressive experience for generating a personalized children's story and its accompanying illustrations. It talks to the FastAPI backend (default: `http://localhost:8000`) which orchestrates LangGraph story + image generation.
 
-First, run the development server:
+### Features
+- Progressive generation (story -> cover -> page illustrations) with live status updates.
+- Smooth page reveal UX with Framer Motion.
+- Toast feedback (`react-hot-toast`).
+- Swipeable reading view (mobile friendly via `react-swipeable`).
 
+### Tech Stack
+Next.js 15 (Pages Router), React 19, TypeScript, Tailwind CSS 4 (PostCSS pipeline), Framer Motion, Axios.
+
+### Prerequisites
+- Node.js 18+ (or 20+ recommended)
+- Backend running locally on port 8000 (see `../backend/README.md`).
+
+### Install & Run
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Visit: http://localhost:3000
+
+### Configuration
+Currently the API base URL is hard‑coded in `utils/api.ts` as `http://localhost:8000`.
+Optionally you can refactor to use an environment variable:
+1. Create `./.env.local`
+2. Add: `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`
+3. Update `utils/api.ts` to read `process.env.NEXT_PUBLIC_API_BASE_URL`.
+
+### Code Map
+- `pages/index.tsx` – Main UI & orchestration.
+- `components/StoryForm.tsx` – User input form (name, age, interests, length).
+- `components/GenerationProgress.tsx` – Live status + incremental page reveal.
+- `utils/api.ts` – Progressive generation workflow logic.
+- `types/` – Shared TypeScript types.
+
+### Data Flow (Progressive Generation)
+1. POST `/generate-story` – Retrieves title, summary, story pages, character metadata.
+2. POST `/generate-cover` – Generates a single portrait cover image.
+3. Parallel POST `/generate-page-image` per story page – Adds illustrations.
+4. UI updates as each page arrives.
+
+### Development Tips
+- Adjust animation timings in `GenerationProgress.tsx` if adding more steps.
+- Guard against duplicate page order by relying on the original story page index (currently sorting by original array position).
+- If you introduce server-side rendering or streaming, move generation logic to API routes or React Server Actions.
+
+### Production Build
+```bash
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Linting
+```bash
+npm run lint
+```
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+### Extending
+- Add theme selector (fairytale / sci‑fi) -> pass extra prompt context to backend.
+- Introduce caching layer for identical prompts (e.g., Redis) to avoid re-generation.
+- Add download-as-PDF (collect pages + images, render via `pdf-lib`).
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+### Learn More (Next.js Resources)
+- https://nextjs.org/docs
+- https://nextjs.org/learn-pages-router
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+### Deployment
+Can be deployed to Vercel or any Node hosting. Ensure environment variable for the backend API base (if refactored) is configured.
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+---
+Generated from the original Create Next App template and customized for the LangGraph Story Generation project.
